@@ -52,6 +52,9 @@ class Chapter(object):
         self.duration = ''
         self.title = ''
 
+    def cellsString(self):
+        return '{}:{}'.format(self.cells[0], self.cells[1])
+
     @property
     def defaultName(self):
 

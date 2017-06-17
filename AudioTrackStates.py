@@ -211,6 +211,7 @@ class AudioTrackStates(MutableSequence):
         # assert(len(audioTrackStates) == 3)
         self.clear()
         track51, trackDTS, trackFallback = audioTracks.GetAutoAudio(preferences.autoAudioTracks)
+
         trackIndex = 0
 
         # Process the 5.1 audio

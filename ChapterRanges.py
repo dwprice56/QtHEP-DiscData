@@ -150,11 +150,13 @@ class ChapterRanges(MutableSequence):
     #     return self.parent.chapters.GetChoices()
 
     def AddEpisode(self, firstChapter, lastChapter, title):
-        """ Add an episode to the list.
+        """ Add an episode to the list.  Return the new episode.
         """
         episode = ChapterRangeEpisode(self)
         episode.Set(firstChapter, lastChapter, title)
         self.append(episode)
+
+        return episode
 
     def FromXML(self, element):
         """ Read the object from an XML file.
