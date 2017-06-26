@@ -629,22 +629,6 @@ class Titles(MutableSequence):
             if (clearSelected): title.selected = False
             if (clearVisible): title.visible = False
 
-    # def ClearSelected(self):
-    #     """ Clear the 'selected' flag for all titles.
-    #     """
-    #     assert(self.HasTitles())
-    #
-    #     for title in self.titles:
-    #         title.selected = False
-    #
-    # def ClearVisible(self):
-    #     """ Clear the 'visible' flag for all titles.
-    #     """
-    #     assert(self.HasTitles())
-    #
-    #     for title in self.titles:
-    #         title.visible = True
-
     def FromXML(self, element):
         """ Read the titles from an XML file.
         """
@@ -717,19 +701,6 @@ class Titles(MutableSequence):
             title.UpdateHash(hash)
 
         return hash.hexdigest()
-
-    # def GetLongest(self):
-    #     """ Return the longest available title.
-    #     """
-    #     assert(self.HasTitles())
-    #
-    #     longestTitle = self.titles[0]
-    #     for title in self.titles:
-    #         title.selected = False
-    #         if (title.durationAsTimedelta > longestTitle.durationAsTimedelta):
-    #             longestTitle = title
-    #
-    #     return longestTitle
 
     def GetMatchingTitles(self, flags=0):
         """ We always want to return something; so either a list of titles that
@@ -823,130 +794,6 @@ class Titles(MutableSequence):
         return MatchingTitles(matchingTitles, longestMatchingTitle, defaultTitle,
             longestTitle)
 
-    # def GetSelectedTitles(self):
-    #     """ Returns the following tuple:
-    #
-    #         List of titles with the 'selected' attribute set.  The first available
-    #             title will be used if none of the titled are 'selected'.  The list
-    #               is in order by order number.
-    #         The longest title in the list.
-    #         A true/false 'autoselect' flag.  This flag is true if none of the
-    #             titles are 'selected'.
-    #     """
-    #     assert(self.HasTitles())
-    #
-    #     titles = []
-    #     autoSelect = True
-    #
-    #     longestTitle = None
-    #     maxTitleLength = datetime.timedelta()
-    #
-    #     titleKeys = sorted(self.titlesByOrderNumber.keys())
-    #     for key in titleKeys:
-    #         title = self.titlesByOrderNumber[key]
-    #
-    #         if (not title.selected):
-    #             continue
-    #
-    #         autoSelect = False
-    #         titles.append(title)
-    #
-    #         titleLength = title.durationAsTimedelta
-    #         if (titleLength > maxTitleLength):
-    #             maxTitleLength = titleLength
-    #             longestTitle = title
-    #
-    #     # Grab the first available title if none are 'selected'
-    #     if (autoSelect):
-    #         title = self.titlesByOrderNumber[titleKeys[0]]
-    #         titles.append(title)
-    #         longestTitle = title
-    #
-    #     return (titles, longestTitle, autoSelect)
-    #
-    # def GetSelectedVisibleTitles(self):
-    #     """ Returns the following tuple:
-    #
-    #         A list of titles with the 'selected' and 'visible' attribute set.
-    #             The list will be empty if none of the titled are 'visible'.
-    #             The list is in order by order number.
-    #             By default, the list will contain the first 'visible' title if
-    #                 none of the titles are selected.
-    #         The longest title in the list.
-    #             This will be None if none of the titles are 'visible'.
-    #         A true/false 'autoselect' flag.  This flag is true if:
-    #             None of the 'visible' titles are 'selected'.
-    #             At least one 'visible' title exists.
-    #     """
-    #     titles = []
-    #     longestTitle = None
-    #     defaultTitleSelected = False
-    #
-    #     if (len(self.titles) == 0):
-    #         return (titles, longestTitle, defaultTitleSelected)
-    #
-    #     maxTitleLength = datetime.timedelta()
-    #
-    #     titleKeys = sorted(self.titlesByOrderNumber.keys())
-    #     for key in titleKeys:
-    #         title = self.titlesByOrderNumber[key]
-    #
-    #         if (not (title.visible and title.selected)):
-    #             continue
-    #
-    #         titles.append(title)
-    #
-    #         titleLength = title.durationAsTimedelta
-    #         if (titleLength > maxTitleLength):
-    #             maxTitleLength = titleLength
-    #             longestTitle = title
-    #
-    #     # Grab the first 'visible' title if none are 'selected'
-    #     if (len(titles) == 0):
-    #         titleKeys = sorted(self.titlesByOrderNumber.keys())
-    #         for key in titleKeys:
-    #             title = self.titlesByOrderNumber[key]
-    #             if (title.visible):
-    #                 titles.append(title)
-    #                 longestTitle = title
-    #                 defaultTitleSelected = True
-    #                 break
-    #
-    #     return (titles, longestTitle, defaultTitleSelected)
-    #
-    # def GetVisibleTitles(self):
-    #     """ Returns the following tuple:
-    #
-    #         List of titles with the 'visible' attribute set.  The list will be
-    #             empty if none of the titled are 'visible'.  The list is in order
-    #               by order number.
-    #         The longest title in the list.  This will be None if none of the
-    #             titles are 'visible'.
-    #     """
-    #
-    #     titles = []
-    #     if (len(self.titles) == 0):
-    #         return (titles, None)
-    #
-    #     longestTitle = None
-    #     maxTitleLength = datetime.timedelta()
-    #
-    #     titleKeys = sorted(self.titlesByOrderNumber.keys())
-    #     for key in titleKeys:
-    #         title = self.titlesByOrderNumber[key]
-    #
-    #         if (not title.visible):
-    #             continue
-    #
-    #         titles.append(title)
-    #
-    #         titleLength = title.durationAsTimedelta
-    #         if (titleLength > maxTitleLength):
-    #             maxTitleLength = titleLength
-    #             longestTitle = title
-    #
-    #     return (titles, longestTitle)
-
     def HasAudioTrackNumber(self, titleNumber, audioTrackNumber):
         """ Verify existence of a specific audio track in a specific title
             and return True/False if the audio track is found.
@@ -958,6 +805,15 @@ class Titles(MutableSequence):
 
         return False
 
+    def HasAudioTrack(self):
+        """ Returns true if at least on title has at least one audio track.
+        """
+        for title in self.titles:
+            if (len(title.audioTracks)):
+                return True
+
+        return False
+
     def HasSubtitleTrackNumber(self, titleNumber, subtitleTrackNumber):
         """ Verify existence of a specific subtitle track in a specific title
             and return True/False if the subtitle track is found.
@@ -966,6 +822,15 @@ class Titles(MutableSequence):
         """
         if (titleNumber in self.titlesByTitleNumber.keys()):
             return self.titlesByTitleNumber[titleNumber].HasSubtitleTrackNumber(subtitleTrackNumber)
+
+        return False
+
+    def HasSubtitleTrack(self):
+        """ Returns true if at least on title has at least one subtitle track.
+        """
+        for title in self.titles:
+            if (len(title.subtitleTracks)):
+                return True
 
         return False
 
@@ -987,7 +852,7 @@ class Titles(MutableSequence):
         """ Re-order the titles moving the selected title to the end of the list.
         """
         orderNumber = title.orderNumber
-        lastOrderNumber = self.titles[-1].orderNumber
+        lastOrderNumber = len(self.titles) - 1
         if (orderNumber == lastOrderNumber):
             return
 
@@ -1006,22 +871,21 @@ class Titles(MutableSequence):
         # just want to move below the next item, we want to move below the
         # next VISIBLE item.
 
-        orderNumber = title.orderNumber
-        lastOrderNumber = self.titles[-1].orderNumber
-        if (orderNumber == lastOrderNumber):
-            return
+        lastOrderNumber = len(self.titles) - 1
+        while (True):
+            orderNumber = title.orderNumber
+            if (orderNumber >= lastOrderNumber):
+                return
 
-        for i in range(orderNumber, lastOrderNumber):
-            swapTitle = self.GetByOrderNumber(i + 1)
+            swapOrderNumber = orderNumber + 1
+            if (swapOrderNumber not in self.titlesByOrderNumber):
+                return
 
-            swapTitle.orderNumber = i
-            self.titlesByOrderNumber[i] = swapTitle
+            swapTitle = self.titlesByOrderNumber[swapOrderNumber]
+            self.__swapTitleOrders(title, swapTitle)
 
             if (swapTitle.visible):
                 break
-
-        title.orderNumber = i + 1
-        self.titlesByOrderNumber[i + 1] = title
 
     def MoveTop(self, title):
         """ Re-order the titles moving the selected title to the beginning of
@@ -1047,21 +911,32 @@ class Titles(MutableSequence):
         # just want to move above the next item, we want to move above the
         # next VISIBLE item.
 
-        orderNumber = title.orderNumber
-        if (orderNumber == 0):
-            return
+        while (True):
+            orderNumber = title.orderNumber
+            if (orderNumber <= 0):
+                return
 
-        for i in range(orderNumber, 0, -1):
-            swapTitle = self.GetByOrderNumber(i - 1)
+            swapOrderNumber = orderNumber - 1
+            if (swapOrderNumber not in self.titlesByOrderNumber):
+                return
 
-            swapTitle.orderNumber = i
-            self.titlesByOrderNumber[i] = swapTitle
+            swapTitle = self.titlesByOrderNumber[swapOrderNumber]
+            self.__swapTitleOrders(title, swapTitle)
 
             if (swapTitle.visible):
                 break
 
-        title.orderNumber = i - 1
-        self.titlesByOrderNumber[i - 1] = title
+    def __swapTitleOrders(self, titleA, titleB):
+        """ Swap the posisions of the titles in the titlesByOrderNumber map.
+        """
+        orderNumberA = titleA.orderNumber
+        orderNumberB = titleB.orderNumber
+
+        titleA.orderNumber = orderNumberB
+        titleB.orderNumber = orderNumberA
+
+        self.titlesByOrderNumber[titleA.orderNumber] = titleA
+        self.titlesByOrderNumber[titleB.orderNumber] = titleB
 
     def Parse(self, buffer):
         """ Parse the output from the HandBrake command line and extract the
@@ -1103,15 +978,6 @@ class Titles(MutableSequence):
         """
         for title in self.titles:
             title.RefreshVisible()
-
-    # def SelectLongest(self):
-    #     """ Set the selected flag of the longest (only the longest) title.
-    #
-    #         Return the selected title.
-    #     """
-    #     longestTitle = self.GetLongest()
-    #     longestTitle.selected = True
-    #     return longestTitle
 
     def SetNaturalTitleOrder(self):
         """ Sets the titles to their natural (default) order.
