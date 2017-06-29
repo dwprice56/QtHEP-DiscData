@@ -16,10 +16,47 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import datetime
+import datetime, os.path, sys
+
+sys.path.insert(0, '/home/dave/QtProjects/Helpers')
+
+from PyHelpers import GetVolumeLabel
 
 def DurationAsTimedelta(duration):
-    """Convert a string in HH:MM:SS format to a time.timedelta object."""
+    """ Convert a string in HH:MM:SS format to a time.timedelta object.
+    """
 
     bits = duration.split(':')
     return datetime.timedelta(hours=int(bits[0]), minutes=int(bits[1]), seconds=int(bits[2]))
+
+def GetFolderVolumeLabel(folder):
+    """ Get the volume label for the disk where the folder is located.
+
+        Windows drives may or may not have volume labels.  If we're running on
+        Windows and the drive has a volume label, use it.
+
+        If we're not running on Windows, or if the drive does not have a label,
+        look for a ".volumeLabel" file in the folder (if present).  If it's not
+        there, look for it one folder level up.  When/if it's found, read the
+        first line and use that as the volume label.
+    """
+    volumeLabel = ''
+    if (sys.platform == 'win32'):
+        volumeLabel = GetVolumeLabel(folder)
+
+    if (not volumeLabel):
+        volumeLabelFilename = os.path.join(folder, '.volumelabel')
+        if (not os.path.exists(volumeLabelFilename)):
+            head, tail = os.path.split(folder)
+            if (head):
+                volumeLabelFilename = os.path.join(head, '.volumelabel')
+                if (not os.path.exists(volumeLabelFilename)):
+                    volumeLabelFilename = ''
+            else:
+                volumeLabelFilename = ''
+
+    if (volumeLabelFilename):
+        with open(volumeLabelFilename, 'r') as f:
+            volumeLabel = f.readline().strip()
+
+    return volumeLabel

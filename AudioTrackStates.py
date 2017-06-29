@@ -199,8 +199,8 @@ class AudioTrackStates(MutableSequence):
                 index = XMLHelpers.GetXMLAttributeAsInt(childNode, 'Index', 0)
                 if (index in range(len(self.audioTrackStates))):
                     self.audioTrackStates[index].FromXML(childNode)
-
-        # TODO Handle index not in range condition.
+                else:
+                    raise RuntimeError('AudioTrackState index "{}" is out of range in FromXML().'.format(index))
 
     def AutoSet_From_AudioTracks(self, audioTracks, preferences):
         """ Set the audio track states based on the auto settings and the

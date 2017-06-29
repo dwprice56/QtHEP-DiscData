@@ -214,14 +214,19 @@ class Disc(object):
     def parent(self):
         return self.__parent
 
-    def FromXML(self, element):
-        """Read the application state from an XML file."""
+    def FromXML(self, element, destinationOverride=None):
+        """ Read the application state from an XML file.
 
-        destination = self.destination
-
+            If the destinationOverride parameter is supplied it will be used
+            instead of the destination in the state file.
+        """
         self.clear()
 
         self.source = XMLHelpers.GetXMLAttribute(element, 'Source', '').strip()
+        if (destinationOverride):
+            self.destination = destinationOverride
+        else:
+            self.destination = XMLHelpers.GetXMLAttribute(element, 'Destination', '').strip()
         # if ((not wx.GetApp().initializing) and wx.GetApp().settings.discSession.keepDestination):
         #     self.destination = destination
         # else:
@@ -250,16 +255,10 @@ class Disc(object):
 
         # ----- Child nodes ----- #
 
-        longestTitle = None
+        # longestTitle = None
         for childNode in element.childNodes:
             if (childNode.localName == Titles.XMLNAME):
                 self.titles.FromXML(childNode)
-                longestTitle = self.titles.GetLongest()
-            elif (childNode.localName == CustomCrop.XMLNAME):
-                if (longestTitle is None):
-                    self.customCrop.FromXML(childNode, AutoCrop(self))
-                else:
-                    self.customCrop.FromXML(childNode, longestTitle.autoCrop)
             elif (childNode.localName == AudioTrackStates.XMLNAME):
                 self.audioTrackStates.FromXML(childNode)
             elif (childNode.localName == SubtitleTrackStates.XMLNAME):
@@ -283,15 +282,25 @@ class Disc(object):
 
         # ----- CROPPING ----- #
 
+        # Cropping is processed after everything else because the default
+        # cropping values are taken from the autoCrop settings of the longest
+        # titles.
+
+        matchingTitles = self.titles.GetMatchingTitles()
+        if (matchingTitles.longestTitle):
+            autoCrop = matchingTitles.longestTitle.autoCrop
+        else:
+            autoCrop = AutoCrop(self)
+
+        for childNode in element.childNodes:
+            if (childNode.localName == CustomCrop.XMLNAME):
+                self.customCrop.FromXML(childNode, autoCrop)        # The autoCrop parameter provides the default values for custom cropping.
+
         # Legacy code: CustomCrop was not always an object.
         # This is done after reading the child nodes because the top, bottom, etc. defaults
         # come from the longestTitle.autoCrop object.
         self.customCrop.processChoice = XMLHelpers.GetValidXMLAttribute(element, 'Crop',
             CustomCrop.PROCESS_DEFAULT, CustomCrop.PROCESS_CHOICES)
-
-        autoCrop = AutoCrop(self)
-        if (longestTitle is not None):
-            autoCrop = longestTitle.autoCrop
 
         self.customCrop.top = XMLHelpers.GetXMLAttributeAsInt(element,
             'CustomcropTop', autoCrop.top)
@@ -305,11 +314,8 @@ class Disc(object):
         self.NewSessionStuff()
 
     def NewSessionStuff(self):
-        """Things to do when a new disc session is parsed or read from a file."""
-
-
-        # TODO Why?  This should be done when a session file is read but
-        # should it be done on Parse?
+        """ Things to do when a new disc session is parsed or read from a file.
+        """
         TitleVisibleSingleton().hideShortTitles = self.hideShortTitles
 
     def Parse(self, buffer):

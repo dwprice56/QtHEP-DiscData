@@ -159,8 +159,8 @@ class SubtitleTrackStates(MutableSequence):
                 index = XMLHelpers.GetXMLAttributeAsInt(childNode, 'Index', 0)
                 if (index in range(len(self.subtitleTrackStates))):
                     self.subtitleTrackStates[index].FromXML(childNode)
-
-        # TODO Handle index not in range condition.
+                else:
+                    raise RuntimeError('SubtitlerackState index "{}" is out of range in FromXML().'.format(index))
 
     def AutoSet_From_SubtitleTracks(self, subtitleTracks, preferences):
         """ Set the subtitle track states based on the auto settings and the

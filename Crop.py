@@ -66,16 +66,22 @@ class Crop(object):
         self.left = cropObject.left
         self.right = cropObject.right
 
-    def FromXML(self, element):
+    def FromXML(self, element, defaultCrop=None):
         """ Read the object from an XML file.
         """
 
         self.clear()
 
-        self.top = XMLHelpers.GetXMLAttributeAsInt(element, 'Top', 0)
-        self.bottom = XMLHelpers.GetXMLAttributeAsInt(element, 'Bottom', 0)
-        self.left = XMLHelpers.GetXMLAttributeAsInt(element, 'Left', 0)
-        self.right = XMLHelpers.GetXMLAttributeAsInt(element, 'Right', 0)
+        if (defaultCrop):
+            self.top = XMLHelpers.GetXMLAttributeAsInt(element, 'Top', defaultCrop.top)
+            self.bottom = XMLHelpers.GetXMLAttributeAsInt(element, 'Bottom', defaultCrop.bottom)
+            self.left = XMLHelpers.GetXMLAttributeAsInt(element, 'Left', defaultCrop.left)
+            self.right = XMLHelpers.GetXMLAttributeAsInt(element, 'Right', defaultCrop.right)
+        else:
+            self.top = XMLHelpers.GetXMLAttributeAsInt(element, 'Top', 0)
+            self.bottom = XMLHelpers.GetXMLAttributeAsInt(element, 'Bottom', 0)
+            self.left = XMLHelpers.GetXMLAttributeAsInt(element, 'Left', 0)
+            self.right = XMLHelpers.GetXMLAttributeAsInt(element, 'Right', 0)
 
     def Set(self, top, bottom, left, right):
         """ Set the attributes.
@@ -147,10 +153,11 @@ class CustomCrop(Crop):
         else:
             self.processChoice = self.PROCESS_DEFAULT
 
-    def FromXML(self, element, customCrop):
+    def FromXML(self, element, defaultCrop=None):
+    # def FromXML(self, element, customCrop):
         """ Read the object from an XML file.
         """
-        super(CustomCrop, self).FromXML(doc, element, customCrop)
+        super(CustomCrop, self).FromXML(element, defaultCrop)
 
         self.processChoice = XMLHelpers.GetValidXMLAttribute(element, 'ProcessChoice',
             self.PROCESS_DEFAULT, self.PROCESS_CHOICES)

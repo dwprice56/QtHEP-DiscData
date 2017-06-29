@@ -19,6 +19,8 @@
 import datetime, sys
 from collections import MutableSequence
 
+from Cells import Cells
+
 sys.path.insert(0, '/home/dave/QtProjects/Helpers')
 
 import XMLHelpers
@@ -31,15 +33,15 @@ class Chapter(object):
     def __init__(self, parent):
         self.__parent = parent
 
-        self.cells = [0, 0]
+        self.cells = Cells(self)
         self.clear()
 
         self.shortChapterDuration = datetime.timedelta(seconds=5)
 
     def __str__(self):
-        return '{} {}: cells {}:{}, duration {}, blocks {}, name "{}"'.format(self.XMLNAME,
-            self.chapterNumber, self.cells[0], self.cells[1],
-            self.duration, self.blocks, self.title)
+        return '{} {}: {}, duration {}, blocks {}, name "{}"'.format(self.XMLNAME,
+            self.chapterNumber, str(self.cells), self.duration, self.blocks,
+            self.title)
 
     def clear(self):
         """ Set all object members to their initial values.
@@ -47,13 +49,10 @@ class Chapter(object):
 
         self.chapterNumber = 0
 
-        self.cells[0], self.cells[1] = (0, 0)
+        self.cells.clear()
         self.blocks = 0
         self.duration = ''
         self.title = ''
-
-    def cellsString(self):
-        return '{}:{}'.format(self.cells[0], self.cells[1])
 
     @property
     def defaultName(self):
@@ -82,8 +81,7 @@ class Chapter(object):
 
         return 'Chapter Number: {}, First Cell: {}, Last Cell: {}, Blocks: {}'.format(
             self.chapterNumber,
-            self.cells[0],
-            self.cells[1],
+            self.cells.first, self.cells.last,
             self.blocks
         )
 
@@ -113,11 +111,18 @@ class Chapter(object):
 
         self.chapterNumber = XMLHelpers.GetXMLAttributeAsInt(element, 'ChapterNumber', 0)
 
-        self.cells[0] = XMLHelpers.GetXMLAttributeAsInt(element, 'FirstCell', 0)
-        self.cells[1] = XMLHelpers.GetXMLAttributeAsInt(element, 'LastCell', 0)
         self.blocks = XMLHelpers.GetXMLAttributeAsInt(element, 'Blocks', 0)
         self.duration = XMLHelpers.GetXMLAttribute(element, 'Duration', '').strip()
         self.title = XMLHelpers.GetXMLAttribute(element, 'Title', self.defaultName).strip()
+
+        # Legacy support: Cells was not always an object.
+        if (element.hasAttribute('FirstCell')):
+            self.cells.first = XMLHelpers.GetXMLAttributeAsInt(element, 'FirstCell', 0)
+            self.cells.last = XMLHelpers.GetXMLAttributeAsInt(element, 'LastCell', 0)
+        else:
+            for childNode in element.childNodes:
+                if (childNode.localName == Cells.XMLNAME):
+                    self.cells.FromXML(childNode)
 
     def Parse(self, line):
         """ Extract the chapter information into the object memebers from
@@ -132,8 +137,8 @@ class Chapter(object):
         for parm in parms:
             if (parm.startswith('cells')):
                 cells = parm.split()[1].split('->')
-                self.cells[0] = int(cells[0])
-                self.cells[1] = int(cells[1])
+                self.cells.first = int(cells[0])
+                self.cells.last = int(cells[1])
 
             elif (parm.endswith('blocks')):
                 self.blocks = int(parm.split()[0])
@@ -158,11 +163,11 @@ class Chapter(object):
 
         element.setAttribute('ChapterNumber', str(self.chapterNumber))
 
-        element.setAttribute('FirstCell', str(self.cells[0]))
-        element.setAttribute('LastCell', str(self.cells[1]))
         element.setAttribute('Blocks', str(self.blocks))
         element.setAttribute('Duration', self.duration)
         element.setAttribute('Title', self.title)
+
+        self.cells.ToXML(doc, element)
 
         return element
 
@@ -334,8 +339,8 @@ class Chapters(MutableSequence):
     def SetChapterName(self, chapterNumber, name):
         """ Sets the name for the specified chapter.
         """
-
-        # TODO: handle invalid chapterNumber condition
+        if (not self.InRange(chapterNumber)):
+            raise RuntimeError('Chapter number "{}" out of range in Chapter.SetChapterName().'.format(chapterNumber))
 
         chapter = self.GetByChapterNumber(chapterNumber)
         if (chapter is not None):

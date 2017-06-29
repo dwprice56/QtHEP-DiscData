@@ -26,6 +26,7 @@ from Helpers import DurationAsTimedelta
 
 from AudioTracks import AudioTrack, AudioTracks
 from AudioTrackStates import AudioTrackState, AudioTrackStates
+from Cells import Cells
 from ChapterRanges import ChapterRangeEpisode, ChapterRanges
 from Chapters import Chapter, Chapters
 from Crop import AutoCrop, CustomCrop
@@ -86,7 +87,7 @@ class Title(object):
 
         self.vts = 0
         self.ttn = 0
-        self.cells = [0, 0]            # first, last
+        self.cells = Cells(self)
         self.blocks = 0
 
         self.duration = ''            # duration can vary by +- 1; maybe because of rounding?
@@ -129,7 +130,7 @@ class Title(object):
         '  size: {}x{}, pixel aspect: {}, display aspect: {:.2f}, fps: {:.3f}\n' \
         '  autoCrop: {}/{}/{}/{}'.format(self.XMLNAME,
         self.titleNumber,
-        self.vts, self.ttn, self.cells[0], self.cells[1], self.blocks,
+        self.vts, self.ttn, self.cells.first, self.cells.last, self.blocks,
         self.duration,
         self.size[0], self.size[1], self.pixelAspectRatio, self.displayAspectRatio, self.framesPerSecond,
         self.autoCrop.top, self.autoCrop.bottom, self.autoCrop.left, self.autoCrop.right)
@@ -187,7 +188,7 @@ class Title(object):
 
         self.vts = 0
         self.ttn = 0
-        self.cells[0], self.cells[1] = (0, 0)        # first, last
+        self.cells.clear()
         self.blocks = 0
 
         self.duration = ''                            # duration can vary by +- 1; maybe because of rounding?
@@ -219,10 +220,6 @@ class Title(object):
         self.currentObject = None   # This attribute is not saved in the XML file.
 
     @property
-    def cellsRange(self):
-        return '{}:{}'.format(self.cells[0], self.cells[1])
-
-    @property
     def durationAsTimedelta(self):
         return DurationAsTimedelta(self.duration)
 
@@ -242,11 +239,9 @@ class Title(object):
         self.titleNumber,
         self.vts,
         self.ttn,
-        self.cells[0],
-        self.cells[1],
+        self.cells.first, self.cells.last,
         self.blocks,
-        self.size[0],
-        self.size[1],
+        self.size[0], self.size[1],
         self.pixelAspectRatio,
         self.displayAspectRatio,
         self.framesPerSecond
@@ -273,9 +268,16 @@ class Title(object):
 
         self.vts = XMLHelpers.GetXMLAttributeAsInt(element, 'VTS', 0)
         self.ttn = XMLHelpers.GetXMLAttributeAsInt(element, 'TTN', 0)
-        self.cells[0] = XMLHelpers.GetXMLAttributeAsInt(element, 'FirstCell', 0)
-        self.cells[1] = XMLHelpers.GetXMLAttributeAsInt(element, 'LastCell', 0)
         self.blocks = XMLHelpers.GetXMLAttributeAsInt(element, 'Blocks', 0)
+
+        # Legacy support: Cells was not always an object.
+        if (element.hasAttribute('FirstCell')):
+            self.cells.first = XMLHelpers.GetXMLAttributeAsInt(element, 'FirstCell', 0)
+            self.cells.last = XMLHelpers.GetXMLAttributeAsInt(element, 'LastCell', 0)
+        else:
+            for childNode in element.childNodes:
+                if (childNode.localName == Cells.XMLNAME):
+                    self.cells.FromXML(childNode)
 
         self.duration = XMLHelpers.GetXMLAttribute(element, 'Duration', '').strip()
 
@@ -345,9 +347,6 @@ class Title(object):
             elif (childNode.localName == SubtitleTracks.XMLNAME):
                 self.subtitleTracks.FromXML(childNode)
 
-            elif (childNode.localName == CustomCrop.XMLNAME):
-                self.customCrop.FromXML(childNode, self.autoCrop)
-
             elif (childNode.localName == AudioTrackStates.XMLNAME):
                 self.audioTrackStates.FromXML(childNode)
 
@@ -372,6 +371,10 @@ class Title(object):
                 self.customSubtitleTrackStates[1].FromXML(childNode, SubtitleTrackState.SUBTITLE_TRACK_CHOICES)
             elif (childNode.localName == 'CustomSubtitleTrack2'):
                 self.customSubtitleTrackStates[2].FromXML(childNode, SubtitleTrackState.SUBTITLE_TRACK_CHOICES)
+
+        for childNode in element.childNodes:
+            if (childNode.localName == CustomCrop.XMLNAME):         # This must be done after autoCrop
+                self.customCrop.FromXML(childNode, self.autoCrop)
 
         self.RefreshVisible()
 
@@ -399,8 +402,8 @@ class Title(object):
 
                 elif (parm.startswith('cells')):
                     cells = parm.split()[1].split('->')
-                    self.cells[0] = int(cells[0])
-                    self.cells[1] = int(cells[1])
+                    self.cells.first = int(cells[0])
+                    self.cells.last = int(cells[1])
 
                 elif (parm.endswith('blocks)')):
                     self.blocks = int(parm.split()[0])
@@ -484,8 +487,6 @@ class Title(object):
 
         element.setAttribute('VTS', str(self.vts))
         element.setAttribute('TTN', str(self.ttn))
-        element.setAttribute('FirstCell', str(self.cells[0]))
-        element.setAttribute('LastCell', str(self.cells[1]))
         element.setAttribute('Blocks', str(self.blocks))
 
         element.setAttribute('Duration', self.duration)
@@ -496,6 +497,7 @@ class Title(object):
         element.setAttribute('DisplayAspectRatio', str(self.displayAspectRatio))
         element.setAttribute('FramesPerSecond', str(self.framesPerSecond))
 
+        self.cells.ToXML(doc, element)
         self.autoCrop.ToXML(doc, element)
         self.chapters.ToXML(doc, element)
         self.audioTracks.ToXML(doc, element)
