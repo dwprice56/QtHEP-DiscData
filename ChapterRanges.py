@@ -48,7 +48,7 @@ class ChapterRangeEpisode(object):
     def parent(self):
         return self.__parent
 
-    def FromXML(self, element):
+    def fromXML(self, element):
         """ Read the object from an XML file.
         """
         self.clear()
@@ -57,14 +57,14 @@ class ChapterRangeEpisode(object):
         self.lastChapter = XMLHelpers.GetXMLAttributeAsInt(element, 'LastChapter', 0)
         self.title = XMLHelpers.GetXMLAttribute(element, 'Title', '').strip()
 
-    def Set(self, firstChapter, lastChapter, title):
+    def set(self, firstChapter, lastChapter, title):
         """ Set the values for the object.
         """
         self.firstChapter = firstChapter
         self.lastChapter = lastChapter
         self.title = title
 
-    def ToXML(self, doc, rootElement):
+    def toXML(self, doc, rootElement):
         """ Write the object to an XML file.
         """
         element = doc.createElement(self.XMLNAME)
@@ -143,22 +143,28 @@ class ChapterRanges(MutableSequence):
         self.lastChapter = 0
 
     @property
+    def hasEpisodes(self):
+        """ Return true/false if there are episodes defined.
+        """
+        return (len(self.episodes) > 0)
+
+    @property
     def parent(self):
         return self.__parent
 
     # def GetChoices(self):
     #     return self.parent.chapters.GetChoices()
 
-    def AddEpisode(self, firstChapter, lastChapter, title):
+    def addEpisode(self, firstChapter, lastChapter, title):
         """ Add an episode to the list.  Return the new episode.
         """
         episode = ChapterRangeEpisode(self)
-        episode.Set(firstChapter, lastChapter, title)
+        episode.set(firstChapter, lastChapter, title)
         self.append(episode)
 
         return episode
 
-    def FromXML(self, element):
+    def fromXML(self, element):
         """ Read the object from an XML file.
         """
         self.clear()
@@ -171,10 +177,10 @@ class ChapterRanges(MutableSequence):
             if (childNode.localName in [ChapterRangeEpisode.XMLNAME, 'ChapterRange', 'Episode']):
 
                 episode = ChapterRangeEpisode(self)
-                episode.FromXML(childNode)
+                episode.fromXML(childNode)
                 self.append(episode)
 
-    def ToXML(self, doc, rootElement):
+    def toXML(self, doc, rootElement):
         """ Write the object to an XML file.
         """
         element = doc.createElement(self.XMLNAME)
@@ -185,7 +191,7 @@ class ChapterRanges(MutableSequence):
         element.setAttribute('LastChapter', str(self.lastChapter))
 
         for episode in self.episodes:
-            episode.ToXML(doc, element)
+            episode.toXML(doc, element)
 
         return element
 
@@ -200,10 +206,10 @@ if __name__ == '__main__':
         print ()
 
     chapterRanges = ChapterRanges(None)
-    chapterRanges.AddEpisode(1, 1, 'First')
-    chapterRanges.AddEpisode(2, 5, 'Second')
-    chapterRanges.AddEpisode(6, 6, 'Third')
-    chapterRanges.AddEpisode(7, 10, 'Fourth')
+    chapterRanges.addEpisode(1, 1, 'First')
+    chapterRanges.addEpisode(2, 5, 'Second')
+    chapterRanges.addEpisode(6, 6, 'Third')
+    chapterRanges.addEpisode(7, 10, 'Fourth')
 
     PrintObject (chapterRanges)
 
@@ -219,7 +225,7 @@ if __name__ == '__main__':
         else:
             childNode = doc.documentElement.childNodes[1]
             if (childNode.localName == ChapterRanges.XMLNAME):
-                chapterRanges.FromXML(childNode)
+                chapterRanges.fromXML(childNode)
                 PrintObject (chapterRanges)
             else:
                 print ('Can''t find element "{}" in "{}".'.format(ChapterRanges.XMLNAME, filename))
@@ -230,7 +236,7 @@ if __name__ == '__main__':
     doc = dom.createDocument(None, 'TestChapterRanges', None)
     parentElement = doc.documentElement
 
-    chapterRanges.ToXML(doc, parentElement)
+    chapterRanges.toXML(doc, parentElement)
 
     xmlFile = open('TestFiles/TestChapterRanges.xml', 'w')
     doc.writexml(xmlFile, '', '\t', '\n')

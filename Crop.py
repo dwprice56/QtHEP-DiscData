@@ -46,7 +46,7 @@ class Crop(object):
         self.right = 0
 
     @property
-    def asString(self):
+    def displayString(self):
         """ Returns the crop information as a formatted string.
         """
         return '{}/{}/{}/{}'.format(self.top, self.bottom, self.left, self.right)
@@ -55,7 +55,7 @@ class Crop(object):
     def parent(self):
         return self.__parent
 
-    def Copy(self, cropObject):
+    def copy(self, cropObject):
         """ Copy the elements from another Crop object.
         """
 
@@ -66,7 +66,7 @@ class Crop(object):
         self.left = cropObject.left
         self.right = cropObject.right
 
-    def FromXML(self, element, defaultCrop=None):
+    def fromXML(self, element, defaultCrop=None):
         """ Read the object from an XML file.
         """
 
@@ -83,7 +83,7 @@ class Crop(object):
             self.left = XMLHelpers.GetXMLAttributeAsInt(element, 'Left', 0)
             self.right = XMLHelpers.GetXMLAttributeAsInt(element, 'Right', 0)
 
-    def Set(self, top, bottom, left, right):
+    def set(self, top, bottom, left, right):
         """ Set the attributes.
         """
 
@@ -92,7 +92,7 @@ class Crop(object):
         self.left = left
         self.right = right
 
-    def ToXML(self, doc, parentElement):
+    def toXML(self, doc, parentElement):
         """ Write the object to an XML file.
         """
 
@@ -113,7 +113,7 @@ class AutoCrop(Crop):
     XMLNAME = 'AutoCrop'
 
     def __init__(self, parent):
-        super(AutoCrop, self).__init__(parent)
+        super().__init__(parent)
 
 class CustomCrop(Crop):
     """ Store the custom cropping information.
@@ -127,7 +127,7 @@ class CustomCrop(Crop):
     PROCESS_CHOICES   = [PROCESS_DEFAULT, PROCESS_AUTOMATIC, PROCESS_CUSTOM]
 
     def __init__(self, parent):
-        super(CustomCrop, self).__init__(parent)
+        super().__init__(parent)
 
         self.processChoice = self.PROCESS_DEFAULT
 
@@ -138,14 +138,14 @@ class CustomCrop(Crop):
     def clear(self):
         """ Set all object members to their initial values.
         """
-        super(CustomCrop, self).clear()
+        super().clear()
 
         self.processChoice = self.PROCESS_DEFAULT
 
-    def Copy(self, cropObject):
+    def copy(self, cropObject):
         """ Copy the elements from another Crop object.
         """
-        super(CustomCrop, self).Copy(cropObject)
+        super().copy(cropObject)
 
         # This is neccessary because cropObject might be an instance of Crop or AutoCrop.
         if (isinstance(cropObject, CustomCrop)):
@@ -153,19 +153,19 @@ class CustomCrop(Crop):
         else:
             self.processChoice = self.PROCESS_DEFAULT
 
-    def FromXML(self, element, defaultCrop=None):
-    # def FromXML(self, element, customCrop):
+    def fromXML(self, element, defaultCrop=None):
+    # def fromXML(self, element, customCrop):
         """ Read the object from an XML file.
         """
-        super(CustomCrop, self).FromXML(element, defaultCrop)
+        super().fromXML(element, defaultCrop)
 
         self.processChoice = XMLHelpers.GetValidXMLAttribute(element, 'ProcessChoice',
             self.PROCESS_DEFAULT, self.PROCESS_CHOICES)
 
-    def ToXML(self, doc, parentElement):
+    def toXML(self, doc, parentElement):
         """ Write the object to an XML file.
         """
-        element = super(CustomCrop, self).ToXML(doc, parentElement)
+        element = super().toXML(doc, parentElement)
 
         element.setAttribute('ProcessChoice', self.processChoice)
 
@@ -205,7 +205,7 @@ if __name__ == '__main__':
         else:
             childNode = doc.documentElement.childNodes[1]
             if (childNode.localName == Crop.XMLNAME):
-                crop.FromXML(childNode)
+                crop.fromXML(childNode)
                 print (crop)
             else:
                 print ('Can''t find element "{}" in "{}".'.format(Crop.XMLNAME, filename))
@@ -223,7 +223,7 @@ if __name__ == '__main__':
         else:
             childNode = doc.documentElement.childNodes[1]
             if (childNode.localName == AutoCrop.XMLNAME):
-                autoCrop.FromXML(childNode)
+                autoCrop.fromXML(childNode)
                 print (autoCrop)
             else:
                 print ('Can''t find element "{}" in "{}".'.format(AutoCrop.XMLNAME, filename))
@@ -241,7 +241,7 @@ if __name__ == '__main__':
         else:
             childNode = doc.documentElement.childNodes[1]
             if (childNode.localName == CustomCrop.XMLNAME):
-                customCrop.FromXML(childNode)
+                customCrop.fromXML(childNode)
                 print (customCrop)
             else:
                 print ('Can''t find element "{}" in "{}".'.format(CustomCrop.XMLNAME, filename))
@@ -252,7 +252,7 @@ if __name__ == '__main__':
     doc = dom.createDocument(None, 'TestCrop', None)
     parentElement = doc.documentElement
 
-    crop.ToXML(doc, parentElement)
+    crop.toXML(doc, parentElement)
 
     xmlFile = open('TestFiles/TestCrop.xml', 'w')
     doc.writexml(xmlFile, '', '\t', '\n')
@@ -265,7 +265,7 @@ if __name__ == '__main__':
     doc = dom.createDocument(None, 'TestAutoCrop', None)
     parentElement = doc.documentElement
 
-    autoCrop.ToXML(doc, parentElement)
+    autoCrop.toXML(doc, parentElement)
 
     xmlFile = open('TestFiles/TestAutoCrop.xml', 'w')
     doc.writexml(xmlFile, '', '\t', '\n')
@@ -278,7 +278,7 @@ if __name__ == '__main__':
     doc = dom.createDocument(None, 'TestCustomCrop', None)
     parentElement = doc.documentElement
 
-    customCrop.ToXML(doc, parentElement)
+    customCrop.toXML(doc, parentElement)
 
     xmlFile = open('TestFiles/TestCustomCrop.xml', 'w')
     doc.writexml(xmlFile, '', '\t', '\n')
@@ -292,12 +292,12 @@ if __name__ == '__main__':
     print (autoCrop)
     print ()
 
-    autoCrop.Set(10, 20, 30, 40)
+    autoCrop.set(10, 20, 30, 40)
     print (crop)
     print (autoCrop)
     print ()
 
-    crop.Copy(autoCrop)
+    crop.copy(autoCrop)
     print (crop)
     print (autoCrop)
     print ()

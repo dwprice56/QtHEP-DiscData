@@ -64,12 +64,63 @@ class TitleVisibleSingleton(object):
         return 'TitleVisibleSingleton: minimumTitleSeconds={}, hideShortTitles={}' \
             .format(self.minimumTitleSeconds, self.hideShortTitles)
 
-    def Set(self, minimumTitleSeconds, hideShortTitles):
+    def set(self, minimumTitleSeconds, hideShortTitles):
         """ Set/update the title visible attributes.
         """
 
         self.minimumTitleSeconds = minimumTitleSeconds
         self.hideShortTitles = hideShortTitles
+
+class TitleSize(object):
+    """ Contains the width and height of the title.
+    """
+
+    XMLNAME = 'TitleSize'
+
+    def __init__(self, parent):
+        self.__parent = parent
+        self.clear()
+
+    def __str__(self):
+        return '{}: width: {}, height: {}'.format(self.XMLNAME,
+            self.width, self.height)
+
+    def clear(self):
+        """ Set all object members to their initial values.
+        """
+        self.width = 0
+        self.height = 0
+
+    @property
+    def durationAsTimedelta(self):
+        return DurationAsTimedelta(self.duration)
+
+    @property
+    def parent(self):
+        return self.__parent
+
+    @property
+    def range(self):
+        return '{}x{}'.format(self.width, self.height)
+
+    def fromXML(self, element):
+        """ Read the object from an XML file.
+        """
+        self.clear()
+
+        self.width = XMLHelpers.GetXMLAttributeAsInt(element, 'Width', 0)
+        self.height = XMLHelpers.GetXMLAttributeAsInt(element, 'Height', 0)
+
+    def toXML(self, doc, parentElement):
+        """ Write the object to an XML file.
+        """
+        element = doc.createElement(self.XMLNAME)
+        parentElement.appendChild(element)
+
+        element.setAttribute('Width', str(self.width))
+        element.setAttribute('Height', str(self.height))
+
+        return element
 
 class Title(object):
     """ This class holds the information for a single DVD or BluRay title.
@@ -92,7 +143,7 @@ class Title(object):
 
         self.duration = ''            # duration can vary by +- 1; maybe because of rounding?
 
-        self.size = [0, 0]            # width, height
+        self.size = TitleSize(self)            # width, height
         self.pixelAspectRatio = ''
         self.displayAspectRatio = 0.0
         self.framesPerSecond = 0.0
@@ -108,19 +159,19 @@ class Title(object):
 
         self.title = ''
         self.selected = False
-        self.orderNumber = 0        # Make sure Titles.SetNaturalTitleOrder() is called at some point.
+        self.orderNumber = 0        # Make sure Titles.setNaturalTitleOrder() is called at some point.
 
         self.customCrop = CustomCrop(self)
         self.audioTrackStates = AudioTrackStates(self)
         self.subtitleTrackStates = SubtitleTrackStates(self)
         self.chapterRanges = ChapterRanges(self)
 
-        # Used by self.Parse(line) to keep track of the current object type
+        # Used by self.parse(line) to keep track of the current object type
         # (audio track, subtitle track, etc.) between calls.
         self.currentObjectType = None
 
-        # This attribute is saved by ToXML() (as a convenience) but it's not read
-        # by FromXML().  Instead, it's set by RefreshVisible().
+        # This attribute is saved by toXML() (as a convenience) but it's not read
+        # by fromXML().  Instead, it's set by refreshVisible().
         self.visible = True
 
     def __str__(self):
@@ -132,7 +183,8 @@ class Title(object):
         self.titleNumber,
         self.vts, self.ttn, self.cells.first, self.cells.last, self.blocks,
         self.duration,
-        self.size[0], self.size[1], self.pixelAspectRatio, self.displayAspectRatio, self.framesPerSecond,
+        self.size.width, self.size.height,
+        self.pixelAspectRatio, self.displayAspectRatio, self.framesPerSecond,
         self.autoCrop.top, self.autoCrop.bottom, self.autoCrop.left, self.autoCrop.right)
 
         s += '\n  {}:'.format(self.chapters)
@@ -193,7 +245,7 @@ class Title(object):
 
         self.duration = ''                            # duration can vary by +- 1; maybe because of rounding?
 
-        self.size[0], self.size[1] = (0, 0)            # width, height
+        self.size.clear()            # width, height
         self.pixelAspectRatio = ''
         self.displayAspectRatio = 0.0
         self.framesPerSecond = 0.0
@@ -241,7 +293,7 @@ class Title(object):
         self.ttn,
         self.cells.first, self.cells.last,
         self.blocks,
-        self.size[0], self.size[1],
+        self.size.width, self.size.height,
         self.pixelAspectRatio,
         self.displayAspectRatio,
         self.framesPerSecond
@@ -251,11 +303,7 @@ class Title(object):
     def parent(self):
         return self.__parent
 
-    @property
-    def sizeRange(self):
-        return '{}x{}'.format(self.size[0], self.size[1])
-
-    def FromXML(self, element):
+    def fromXML(self, element):
         """ Populate the object from an XML element.
         """
 
@@ -277,12 +325,19 @@ class Title(object):
         else:
             for childNode in element.childNodes:
                 if (childNode.localName == Cells.XMLNAME):
-                    self.cells.FromXML(childNode)
+                    self.cells.fromXML(childNode)
 
         self.duration = XMLHelpers.GetXMLAttribute(element, 'Duration', '').strip()
 
-        self.size[0] = XMLHelpers.GetXMLAttributeAsInt(element, 'Width', 0)
-        self.size[1] = XMLHelpers.GetXMLAttributeAsInt(element, 'Height', 0)
+        # Legacy support: TitleSize was not always an object.
+        if (element.hasAttribute('Width')):
+            self.size.width = XMLHelpers.GetXMLAttributeAsInt(element, 'Width', 0)
+            self.size.height = XMLHelpers.GetXMLAttributeAsInt(element, 'Height', 0)
+        else:
+            for childNode in element.childNodes:
+                if (childNode.localName == TitleSize.XMLNAME):
+                    self.size.fromXML(childNode)
+
         self.pixelAspectRatio = XMLHelpers.GetXMLAttribute(element, 'PixelAspectRatio', '')
         self.displayAspectRatio = XMLHelpers.GetXMLAttributeAsFloat(element, 'DisplayAspectRatio', 0.0)
         self.framesPerSecond = XMLHelpers.GetXMLAttributeAsFloat(element, 'FramesPerSecond', 0.0)
@@ -336,49 +391,49 @@ class Title(object):
 
         for childNode in element.childNodes:
             if (childNode.localName == AutoCrop.XMLNAME):
-                self.autoCrop.FromXML(childNode)
+                self.autoCrop.fromXML(childNode)
 
             if (childNode.localName == Chapters.XMLNAME):
-                self.chapters.FromXML(childNode)
+                self.chapters.fromXML(childNode)
 
             elif (childNode.localName == AudioTracks.XMLNAME):
-                self.audioTracks.FromXML(childNode)
+                self.audioTracks.fromXML(childNode)
 
             elif (childNode.localName == SubtitleTracks.XMLNAME):
-                self.subtitleTracks.FromXML(childNode)
+                self.subtitleTracks.fromXML(childNode)
 
             elif (childNode.localName == AudioTrackStates.XMLNAME):
-                self.audioTrackStates.FromXML(childNode)
+                self.audioTrackStates.fromXML(childNode)
 
             elif (childNode.localName == SubtitleTrackStates.XMLNAME):
-                self.subtitleTrackStates.FromXML(childNode)
+                self.subtitleTrackStates.fromXML(childNode)
 
             elif (childNode.localName == ChapterRanges.XMLNAME):
-                self.chapterRanges.FromXML(childNode)
+                self.chapterRanges.fromXML(childNode)
 
             # Legacy support: Before the creation of the AudioTrackStates object.
             elif (childNode.localName == 'CustomAudioTrack0'):
-                self.audioTrackStates[0].FromXML(childNode)
+                self.audioTrackStates[0].fromXML(childNode)
             elif (childNode.localName == 'CustomAudioTrack1'):
-                self.audioTrackStates[1].FromXML(childNode)
+                self.audioTrackStates[1].fromXML(childNode)
             elif (childNode.localName == 'CustomAudioTrack2'):
-                self.audioTrackStates[2].FromXML(childNode)
+                self.audioTrackStates[2].fromXML(childNode)
 
             # Legacy support: Before the creation of the AudioTrackStates object.
             elif (childNode.localName == 'CustomSubtitleTrack0'):
-                self.customSubtitleTrackStates[0].FromXML(childNode, SubtitleTrackState.SUBTITLE_TRACK_CHOICES)
+                self.customSubtitleTrackStates[0].fromXML(childNode, SubtitleTrackState.SUBTITLE_TRACK_CHOICES)
             elif (childNode.localName == 'CustomSubtitleTrack1'):
-                self.customSubtitleTrackStates[1].FromXML(childNode, SubtitleTrackState.SUBTITLE_TRACK_CHOICES)
+                self.customSubtitleTrackStates[1].fromXML(childNode, SubtitleTrackState.SUBTITLE_TRACK_CHOICES)
             elif (childNode.localName == 'CustomSubtitleTrack2'):
-                self.customSubtitleTrackStates[2].FromXML(childNode, SubtitleTrackState.SUBTITLE_TRACK_CHOICES)
+                self.customSubtitleTrackStates[2].fromXML(childNode, SubtitleTrackState.SUBTITLE_TRACK_CHOICES)
 
         for childNode in element.childNodes:
             if (childNode.localName == CustomCrop.XMLNAME):         # This must be done after autoCrop
-                self.customCrop.FromXML(childNode, self.autoCrop)
+                self.customCrop.fromXML(childNode, self.autoCrop)
 
-        self.RefreshVisible()
+        self.refreshVisible()
 
-    def Parse(self, line):
+    def parse(self, line):
         """ Extract the title, chapter, audio track and subtitle track information
             into the object memebers from Handbrakes output.
         """
@@ -410,7 +465,7 @@ class Title(object):
 
         elif (line.startswith('  + duration:')):
             self.duration = line[4:].split()[1]
-            self.RefreshVisible()
+            self.refreshVisible()
 
         elif (line.startswith('  + size:')):
             parms = line[4:].split(', ')
@@ -418,7 +473,8 @@ class Title(object):
             for parm in parms:
                 if (parm.startswith('size:')):
                     sizes = parm.split()[1].split('x')
-                    self.size[0], self.size[1] = (int(sizes[0]), int(sizes[1]))
+                    self.size.width = int(sizes[0])
+                    self.size.height = int(sizes[1])
 
                 elif (parm.startswith('pixel aspect:')):
                     self.pixelAspectRatio = parm.split()[2]
@@ -449,20 +505,20 @@ class Title(object):
         elif (line.startswith('    +')):
             if (self.currentObjectType == Chapter.XMLNAME):
                 o = Chapter(self.chapters)
-                o.Parse(line)
+                o.parse(line)
                 self.chapters.append(o)
 
             elif (self.currentObjectType == AudioTrack.XMLNAME):
                 o = AudioTrack(self.audioTracks)
-                o.Parse(line)
+                o.parse(line)
                 self.audioTracks.append(o)
 
             elif (self.currentObjectType == SubtitleTrack.XMLNAME):
                 o = SubtitleTrack(self.subtitleTracks)
-                o.Parse(line)
+                o.parse(line)
                 self.subtitleTracks.append(o)
 
-    def RefreshVisible(self):
+    def refreshVisible(self):
         """ Update the 'visible' flag based on the current visiblity settings.
         """
 
@@ -472,7 +528,7 @@ class Title(object):
             if (self.durationAsTimedelta <= minimumTitleSeconds):
                 self.visible = False
 
-    def ToXML(self, doc, parentElement):
+    def toXML(self, doc, parentElement):
         """ Create a new XML element from the title and append it to the
             parentElement.
         """
@@ -491,17 +547,16 @@ class Title(object):
 
         element.setAttribute('Duration', self.duration)
 
-        element.setAttribute('Width', str(self.size[0]))
-        element.setAttribute('Height', str(self.size[1]))
         element.setAttribute('PixelAspectRatio', self.pixelAspectRatio)
         element.setAttribute('DisplayAspectRatio', str(self.displayAspectRatio))
         element.setAttribute('FramesPerSecond', str(self.framesPerSecond))
 
-        self.cells.ToXML(doc, element)
-        self.autoCrop.ToXML(doc, element)
-        self.chapters.ToXML(doc, element)
-        self.audioTracks.ToXML(doc, element)
-        self.subtitleTracks.ToXML(doc, element)
+        self.cells.toXML(doc, element)
+        self.size.toXML(doc, element)
+        self.autoCrop.toXML(doc, element)
+        self.chapters.toXML(doc, element)
+        self.audioTracks.toXML(doc, element)
+        self.subtitleTracks.toXML(doc, element)
 
         # # The remaining variables contain state information for this title
         # # ========================================================================
@@ -510,18 +565,18 @@ class Title(object):
         element.setAttribute('Selected', XMLHelpers.BoolToString(self.selected))
         element.setAttribute('OrderNumber', str(self.orderNumber))
 
-        self.customCrop.ToXML(doc, element)
-        self.audioTrackStates.ToXML(doc, element)
-        self.subtitleTrackStates.ToXML(doc, element)
-        self.chapterRanges.ToXML(doc, element)
+        self.customCrop.toXML(doc, element)
+        self.audioTrackStates.toXML(doc, element)
+        self.subtitleTrackStates.toXML(doc, element)
+        self.chapterRanges.toXML(doc, element)
 
         # These are "convenience" attributes for other applications that read the XML file.
-        # They are ignored by self.FromXML().
+        # They are ignored by self.fromXML().
         element.setAttribute('visible', XMLHelpers.BoolToString(self.visible))
 
         return element
 
-    def UpdateHash(self, hash):
+    def updateHash(self, hash):
         """ Updates a hash object based on the title data.
         """
 
@@ -565,7 +620,7 @@ class Titles(MutableSequence):
         # and is calculated using strings derived from the disc content (i.e. audio tracks,
         # subtitle tracks, ets.).  It is used to create a (so far) unique file name
         # based, in part, on the hashlib.sha256()hexdigest().  The file name is used by the
-        # ToXML() method to store the disc information.
+        # toXML() method to store the disc information.
         self.hash = None
 
     def __str__(self):
@@ -620,7 +675,17 @@ class Titles(MutableSequence):
         self.titlesByTitleNumber.clear()
         self.titlesByOrderNumber.clear()
 
-    def ClearFlaggedAttributes(self, flags):
+    @property
+    def hasTitles(self):
+        """ Returns true if one or more title objects are present.
+        """
+        return (len(self.titles) > 0)
+
+    @property
+    def parent(self):
+        return self.__parent
+
+    def clearFlaggedAttributes(self, flags):
         """ Iterate through the titles.  Clear the visible and/or selected
             attributes, depending on the flags.
         """
@@ -631,7 +696,7 @@ class Titles(MutableSequence):
             if (clearSelected): title.selected = False
             if (clearVisible): title.visible = False
 
-    def FromXML(self, element):
+    def fromXML(self, element):
         """ Read the titles from an XML file.
         """
 
@@ -639,16 +704,16 @@ class Titles(MutableSequence):
 
         # Here's the problem: if the OrderNumber attribute is missing from the XML
         # file, all of the titles in titlesByOrderNumber will overwrite each other (index=0).
-        # BUT, we don't want to SetNaturalTitleOrder() unless the attribute is missing because
+        # BUT, we don't want to setNaturalTitleOrder() unless the attribute is missing because
         # that would overwrite the order information from the XML file.  We start with
-        # orderNumberFound=True because we want to SetNaturalTitleOrder() if any
+        # orderNumberFound=True because we want to setNaturalTitleOrder() if any
         # title doesn't have an OrderNumber attribute.
         orderNumberFound = True
 
         for childNode in element.childNodes:
             if (childNode.localName == Title.XMLNAME):
                 title = Title(self)
-                title.FromXML(childNode)
+                title.fromXML(childNode)
 
                 self.append(title)
 
@@ -656,20 +721,20 @@ class Titles(MutableSequence):
                     orderNumberFound = False
 
         if (not orderNumberFound):
-            self.SetNaturalTitleOrder()
-        self.RefreshVisible()
+            self.setNaturalTitleOrder()
+        self.refreshVisible()
 
         # Store the hash so it's not constantly being re-calculate.  It should never change.
-        self.hash = self.GetHash()
+        self.hash = self.getHash()
 
-    def GetById(self, objectId):
+    def getById(self, objectId):
         """ Returns the title based on it's python object id.
         """
         assert (objectId in self.titlesById.keys())
 
         return self.titlesById[objectId]
 
-    def GetByTitleNumber(self, titleNumber):
+    def getByTitleNumber(self, titleNumber):
         """ Returns the title for a title number.
 
             Returns None if the requested track doesn't exist.
@@ -679,7 +744,7 @@ class Titles(MutableSequence):
 
         return None
 
-    def GetByOrderNumber(self, orderNumber):
+    def getByOrderNumber(self, orderNumber):
         """ Returns the title for a title number.
 
             Returns None if the requested track doesn't exist.
@@ -689,9 +754,12 @@ class Titles(MutableSequence):
 
         return None
 
-    def GetHash(self):
+    def getHash(self):
         """ Returns a string containing the hash value calculated from the titles.
         """
+        if (not len(self.titles)):
+            return None
+
         hash = hashlib.sha256()
 
         hashString = "Title Count: {}".format(len(self.titles))
@@ -700,11 +768,59 @@ class Titles(MutableSequence):
         titleKeys = sorted(self.titlesByTitleNumber.keys())
         for titleKey in titleKeys:
             title = self.titlesByTitleNumber[titleKey]
-            title.UpdateHash(hash)
+            title.updateHash(hash)
 
         return hash.hexdigest()
 
-    def GetMatchingTitles(self, flags=0):
+    def hasAudioTrackNumber(self, titleNumber, audioTrackNumber):
+        """ Verify existence of a specific audio track in a specific title
+            and return True/False if the audio track is found.
+
+            Always return false if the title is not found.
+        """
+        if (titleNumber in self.titlesByTitleNumber.keys()):
+            return self.titlesByTitleNumber[titleNumber].hasAudioTrackNumber(audioTrackNumber)
+
+        return False
+
+    def hasAudioTrack(self):
+        """ Returns true if at least on title has at least one audio track.
+        """
+        for title in self.titles:
+            if (len(title.audioTracks)):
+                return True
+
+        return False
+
+    def hasSubtitleTrackNumber(self, titleNumber, subtitleTrackNumber):
+        """ Verify existence of a specific subtitle track in a specific title
+            and return True/False if the subtitle track is found.
+
+            Always return false if the title is not found.
+        """
+        if (titleNumber in self.titlesByTitleNumber.keys()):
+            return self.titlesByTitleNumber[titleNumber].hasSubtitleTrackNumber(subtitleTrackNumber)
+
+        return False
+
+    def hasSubtitleTrack(self):
+        """ Returns true if at least on title has at least one subtitle track.
+        """
+        for title in self.titles:
+            if (len(title.subtitleTracks)):
+                return True
+
+        return False
+
+    def hasTitleNumber(self, titleNumber):
+        """ Returns true/false if a track number exists.
+        """
+        if (titleNumber in self.titlesByTitleNumber.keys()):
+            return True
+
+        return False
+
+    def matchingTitles(self, flags=0):
         """ We always want to return something; so either a list of titles that
             match the flags or a default title.  This method returns a named
             tuple containing:
@@ -728,7 +844,8 @@ class Titles(MutableSequence):
             The matchingTitles list is orderd by Title.orderNumber, not by
             Title.titleNumber.
         """
-        assert(self.HasTitles())
+        if (not self.hasTitles):
+            return MatchingTitles([], None, None, None)
 
         wantSelected = (flags & self.FLAG_SELECTED)
         wantVisible = (flags & self.FLAG_VISIBLE)
@@ -796,61 +913,7 @@ class Titles(MutableSequence):
         return MatchingTitles(matchingTitles, longestMatchingTitle, defaultTitle,
             longestTitle)
 
-    def HasAudioTrackNumber(self, titleNumber, audioTrackNumber):
-        """ Verify existence of a specific audio track in a specific title
-            and return True/False if the audio track is found.
-
-            Always return false if the title is not found.
-        """
-        if (titleNumber in self.titlesByTitleNumber.keys()):
-            return self.titlesByTitleNumber[titleNumber].HasAudioTrackNumber(audioTrackNumber)
-
-        return False
-
-    def HasAudioTrack(self):
-        """ Returns true if at least on title has at least one audio track.
-        """
-        for title in self.titles:
-            if (len(title.audioTracks)):
-                return True
-
-        return False
-
-    def HasSubtitleTrackNumber(self, titleNumber, subtitleTrackNumber):
-        """ Verify existence of a specific subtitle track in a specific title
-            and return True/False if the subtitle track is found.
-
-            Always return false if the title is not found.
-        """
-        if (titleNumber in self.titlesByTitleNumber.keys()):
-            return self.titlesByTitleNumber[titleNumber].HasSubtitleTrackNumber(subtitleTrackNumber)
-
-        return False
-
-    def HasSubtitleTrack(self):
-        """ Returns true if at least on title has at least one subtitle track.
-        """
-        for title in self.titles:
-            if (len(title.subtitleTracks)):
-                return True
-
-        return False
-
-    def HasTitleNumber(self, titleNumber):
-        """ Returns true/false if a track number exists.
-        """
-        if (titleNumber in self.titlesByTitleNumber.keys()):
-            return True
-
-        return False
-
-    def HasTitles(self):
-        """ Returns true if one or more title objects are present.
-        """
-
-        return (len(self.titles) > 0)
-
-    def MoveBottom(self, title):
+    def moveBottom(self, title):
         """ Re-order the titles moving the selected title to the end of the list.
         """
         orderNumber = title.orderNumber
@@ -859,14 +922,14 @@ class Titles(MutableSequence):
             return
 
         for i in range(orderNumber, lastOrderNumber):
-            swapTitle = self.GetByOrderNumber(i + 1)
+            swapTitle = self.getByOrderNumber(i + 1)
             swapTitle.orderNumber = i
             self.titlesByOrderNumber[i] = swapTitle
 
         title.orderNumber = lastOrderNumber
         self.titlesByOrderNumber[lastOrderNumber] = title
 
-    def MoveDown(self, title):
+    def moveDown(self, title):
         """ Re-order the titles moving the selected title down by one.
         """
         # Here's where the visible/not visible thing gets tricky.  We don't
@@ -889,24 +952,24 @@ class Titles(MutableSequence):
             if (swapTitle.visible):
                 break
 
-    def MoveTop(self, title):
+    def moveTop(self, title):
         """ Re-order the titles moving the selected title to the beginning of
             the list.
         """
 
         orderNumber = title.orderNumber
-        if (orderNumber == 0):
+        if (not orderNumber):
             return
 
         for i in range(orderNumber, 0, -1):
-            swapTitle = self.GetByOrderNumber(i - 1)
+            swapTitle = self.getByOrderNumber(i - 1)
             swapTitle.orderNumber = i
             self.titlesByOrderNumber[i] = swapTitle
 
         title.orderNumber = 0
         self.titlesByOrderNumber[0] = title
 
-    def MoveUp(self, title):
+    def moveUp(self, title):
         """ Re-order the titles moving the selected title up by one.
         """
         # Here's where the visible/not visible thing gets tricky.  We don't
@@ -940,7 +1003,7 @@ class Titles(MutableSequence):
         self.titlesByOrderNumber[titleA.orderNumber] = titleA
         self.titlesByOrderNumber[titleB.orderNumber] = titleB
 
-    def Parse(self, buffer):
+    def parse(self, buffer):
         """ Parse the output from the HandBrake command line and extract the
             title information.  Use the informtion to create Title objects.
         """
@@ -960,28 +1023,28 @@ class Titles(MutableSequence):
                         self.append(currentTitle)
 
                     currentTitle = Title(self)
-                    currentTitle.Parse(line)
+                    currentTitle.parse(line)
 
                 else:
                     if (currentTitle is not None):
-                        currentTitle.Parse(line)
+                        currentTitle.parse(line)
 
         if (currentTitle is not None):
             self.append(currentTitle)
 
-        self.SetNaturalTitleOrder()
-        self.RefreshVisible()
+        self.setNaturalTitleOrder()
+        self.refreshVisible()
 
         # Store the hash so it's not constantly being re-calculate.  It should never change.
-        self.hash = self.GetHash()
+        self.hash = self.getHash()
 
-    def RefreshVisible(self):
+    def refreshVisible(self):
         """ Update the 'visible' flag for all titles.
         """
         for title in self.titles:
-            title.RefreshVisible()
+            title.refreshVisible()
 
-    def SetNaturalTitleOrder(self):
+    def setNaturalTitleOrder(self):
         """ Sets the titles to their natural (default) order.
         """
         self.titlesByOrderNumber.clear()
@@ -990,24 +1053,24 @@ class Titles(MutableSequence):
         titleNumbers = sorted(self.titlesByTitleNumber.keys())
 
         for titleNumber in titleNumbers:
-            title = self.GetByTitleNumber(titleNumber)
+            title = self.getByTitleNumber(titleNumber)
             title.orderNumber = orderNumber
             self.titlesByOrderNumber[orderNumber] = title
             orderNumber += 1
 
-    def ToXML(self, doc, parentElement):
+    def toXML(self, doc, parentElement):
         """ Write the titles to an XML file.
         """
         element = doc.createElement(self.XMLNAME)
         parentElement.appendChild(element)
 
         # These are "convenience" attributes for other applications that read the XML file.
-        # They are ignored by self.FromXML().
+        # They are ignored by self.fromXML().
         element.setAttribute('hash', self.hash)
         element.setAttribute('count', str(len(self.titles)))
 
         for title in self.titles:
-            title.ToXML(doc, element)
+            title.toXML(doc, element)
 
         return element
 
@@ -1017,7 +1080,7 @@ if __name__ == '__main__':
 
     titleVisibleSingleton = TitleVisibleSingleton()
     print (titleVisibleSingleton)
-    titleVisibleSingleton.Set(45, True)
+    titleVisibleSingleton.set(45, True)
     print (TitleVisibleSingleton())
 
     discTitles = Titles(None)
@@ -1036,7 +1099,7 @@ if __name__ == '__main__':
         else:
             childNode = doc.documentElement.childNodes[1]
             if (childNode.localName == Titles.XMLNAME):
-                discTitles.FromXML(childNode)
+                discTitles.fromXML(childNode)
                 print (discTitles)
                 for discTitle in discTitles:
                     print (discTitle)
@@ -1058,9 +1121,9 @@ if __name__ == '__main__':
         print ('ERROR!  Unable to find file "{}".'.format(filename))
         sys.exit(1)
 
-    discTitles.Parse(buffer)
+    discTitles.parse(buffer)
 
-    discTitles[0].chapterRanges.AddEpisode(1, 3, 'Testing')
+    discTitles[0].chapterRanges.addEpisode(1, 3, 'Testing')
 
     print (discTitles)
     for discTitle in discTitles:
@@ -1069,17 +1132,17 @@ if __name__ == '__main__':
 
     # ********************************************************
 
-    discTitles.MoveDown(discTitles[0])
-    discTitles.MoveUp(discTitles[-1])
-    discTitles.MoveBottom(discTitles[0])
-    discTitles.MoveTop(discTitles[-1])
+    discTitles.moveDown(discTitles[0])
+    discTitles.moveUp(discTitles[-1])
+    discTitles.moveBottom(discTitles[0])
+    discTitles.moveTop(discTitles[-1])
 
     # ============================================================
     dom = minidom.getDOMImplementation()
     doc = dom.createDocument(None, 'TestTitles', None)
     parentElement = doc.documentElement
 
-    discTitles.ToXML(doc, parentElement)
+    discTitles.toXML(doc, parentElement)
 
     xmlFile = open('TestFiles/TestTitles.xml', 'w')
     doc.writexml(xmlFile, '', '\t', '\n')

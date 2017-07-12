@@ -23,11 +23,18 @@ sys.path.insert(0, '/home/dave/QtProjects/Helpers')
 from PyHelpers import GetVolumeLabel
 
 def DurationAsTimedelta(duration):
-    """ Convert a string in HH:MM:SS format to a time.timedelta object.
+    """ Convert a string in HH:MM:SS format to a datetime.timedelta object.
     """
-
     bits = duration.split(':')
     return datetime.timedelta(hours=int(bits[0]), minutes=int(bits[1]), seconds=int(bits[2]))
+
+def TimedeltaAsDuration(td):
+    """ Convert datetime.timedelta object to a string in HH:MM:SS format.
+    """
+    hours, remainder = divmod(td.total_seconds(), 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    return '{:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds))
 
 def GetFolderVolumeLabel(folder):
     """ Get the volume label for the disk where the folder is located.

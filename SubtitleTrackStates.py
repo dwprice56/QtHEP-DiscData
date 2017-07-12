@@ -44,15 +44,24 @@ class SubtitleTrackState(object):
         self.index, self.track, self.forced, self.burn, self.default)
 
     @property
+    def hasOption(self):
+        """ Returns true if the state has a forced, burn or default option.
+        """
+        return (self.forced | self.burn | self.default)
+
+    @property
     def isTrackSelected(self):
         """ Returns true if the state has a track selected.
         """
-
         return (self.track != self.SUBTITLE_TRACK_CHOICES[0])
 
     @property
     def parent(self):
         return self.__parent
+
+    @property
+    def row(self):
+        return (self.index + 1)
 
     def clear(self):
         """ Set all object members to their initial values.
@@ -62,7 +71,7 @@ class SubtitleTrackState(object):
         self.burn = False
         self.default = False
 
-    def FromXML(self, element):
+    def fromXML(self, element):
         """ Read the object from an XML file.
         """
         self.clear()
@@ -77,7 +86,7 @@ class SubtitleTrackState(object):
         if (self.track not in self.SUBTITLE_TRACK_CHOICES):
             self.track = self.SUBTITLE_TRACK_CHOICES[0]
 
-    def ToXML(self, doc, rootElement):
+    def toXML(self, doc, rootElement):
         """ Write the object to an XML file.
         """
         element = doc.createElement(self.XMLNAME)
@@ -143,10 +152,16 @@ class SubtitleTrackStates(MutableSequence):
             subtitleTrackState.clear()
 
     @property
+    def isCustom(self):
+        """ Returns True if this object has custom audio.
+        """
+        return (self.processChoice == self.PROCESS_CUSTOM)
+
+    @property
     def parent(self):
         return self.__parent
 
-    def FromXML(self, element):
+    def fromXML(self, element):
         """ Read the object from an XML file.
         """
         self.clear()
@@ -158,16 +173,16 @@ class SubtitleTrackStates(MutableSequence):
             if (childNode.localName == SubtitleTrackState.XMLNAME):
                 index = XMLHelpers.GetXMLAttributeAsInt(childNode, 'Index', 0)
                 if (index in range(len(self.subtitleTrackStates))):
-                    self.subtitleTrackStates[index].FromXML(childNode)
+                    self.subtitleTrackStates[index].fromXML(childNode)
                 else:
-                    raise RuntimeError('SubtitlerackState index "{}" is out of range in FromXML().'.format(index))
+                    raise RuntimeError('SubtitlerackState index "{}" is out of range in fromXML().'.format(index))
 
-    def AutoSet_From_SubtitleTracks(self, subtitleTracks, preferences):
+    def autoset_From_SubtitleTracks(self, subtitleTracks, preferences):
         """ Set the subtitle track states based on the auto settings and the
             available subtitle tracks.
         """
         self.clear()
-        subtitleTrack = subtitleTracks.GetAutoSubtitle(preferences.autoSubtitle)
+        subtitleTrack = subtitleTracks.getAutoSubtitle(preferences.autoSubtitle)
 
         if (subtitleTrack is not None):
             self.subtitleTrackStates[0].track = str(subtitleTrack.trackNumber)
@@ -175,8 +190,20 @@ class SubtitleTrackStates(MutableSequence):
             self.subtitleTrackStates[0].burn = preferences.autoSubtitle.subtitleBurn
             self.subtitleTrackStates[0].default = preferences.autoSubtitle.subtitleDefault
 
+    # def selectedTrackStates(self):
+    #     """ Return the selected subtitle tracks.
+    #
+    #         Returns a list of subtitle track states that are isTrackSelected.
+    #     """
+    #     selectedTracks = []
+    #
+    #     for subtitleTrackState in self.subtitleTrackStates:
+    #         if (subtitleTrackState.isTrackSelected):
+    #             selectedTracks.append(subtitleTrackState)
+    #
+        # return selectedTracks
 
-    def ToXML(self, doc, parentElement):
+    def toXML(self, doc, parentElement):
         """ Write the object to an XML file.
         """
         if (len(self.subtitleTrackStates) > 0):
@@ -186,11 +213,11 @@ class SubtitleTrackStates(MutableSequence):
             element.setAttribute('ProcessChoice', self.processChoice)
 
             # These are "convenience" attributes for other applications that read the XML file.
-            # They are ignored by self.FromXML().
+            # They are ignored by self.fromXML().
             element.setAttribute('count', str(len(self.subtitleTrackStates)))
 
             for subtitleTrackState in self.subtitleTrackStates:
-                subtitleTrackState.ToXML(doc, element)
+                subtitleTrackState.toXML(doc, element)
 
             return element
 
@@ -221,7 +248,7 @@ if __name__ == '__main__':
         else:
             childNode = doc.documentElement.childNodes[1]
             if (childNode.localName == SubtitleTrackStates.XMLNAME):
-                subtitleTrackStates.FromXML(childNode)
+                subtitleTrackStates.fromXML(childNode)
                 PrintObject (subtitleTrackStates)
             else:
                 print ('Can''t find element "{}" in "{}".'.format(SubtitleTrackStates.XMLNAME, filename))
@@ -232,7 +259,7 @@ if __name__ == '__main__':
     doc = dom.createDocument(None, 'TestSubtitleTrackStates', None)
     parentElement = doc.documentElement
 
-    subtitleTrackStates.ToXML(doc, parentElement)
+    subtitleTrackStates.toXML(doc, parentElement)
 
     xmlFile = open('TestFiles/TestSubtitleTrackStates.xml', 'w')
     doc.writexml(xmlFile, '', '\t', '\n')

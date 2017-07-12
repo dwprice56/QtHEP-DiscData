@@ -17,14 +17,16 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import datetime, sys
-from collections import MutableSequence
+from collections import MutableSequence, namedtuple
 
 from Cells import Cells
 
 sys.path.insert(0, '/home/dave/QtProjects/Helpers')
 
 import XMLHelpers
-from Helpers import DurationAsTimedelta
+from Helpers import DurationAsTimedelta, TimedeltaAsDuration
+
+CheckChapterNames = namedtuple('CheckChapterNames', 'hasDefaultNames, hasCustomNames')
 
 class Chapter(object):
 
@@ -39,9 +41,10 @@ class Chapter(object):
         self.shortChapterDuration = datetime.timedelta(seconds=5)
 
     def __str__(self):
-        return '{} {}: {}, duration {}, blocks {}, name "{}"'.format(self.XMLNAME,
-            self.chapterNumber, str(self.cells), self.duration, self.blocks,
-            self.title)
+        return ('{} {}: {}, duration {}, cumulativeDuration {}, blocks {}, '
+            'name "{}"').format(self.XMLNAME,
+            self.chapterNumber, str(self.cells), self.duration,
+            self.cumulativeDuration, self.blocks, self.title)
 
     def clear(self):
         """ Set all object members to their initial values.
@@ -54,21 +57,24 @@ class Chapter(object):
         self.duration = ''
         self.title = ''
 
+        self.cumulativeDuration = ''
+
     @property
     def defaultName(self):
-
-
-        # TODO The default name should be the chapter number plus the offset first chapter number (a state value)
-        #      Maybe the offset should be stored in the Chapters() object.
-        #      But what about decoupling the Chapter() object from state?
-
-
-        return 'Chapter {}'.format(self.chapterNumber)
-        # return 'Chapter {}'.format(self.chapterNumber + self.parent.parent.firstChapterNumber - 1)
+        """ The default name for the chapter.  This is the chapter number plus
+            the first chapter number from the parent chapters object.
+        """
+        # return 'Chapter {}'.format(self.chapterNumber)
+        return 'Chapter {}'.format(self.chapterNumber +
+            self.parent.firstChapterNumber - 1)
 
     @property
     def durationAsTimedelta(self):
         return DurationAsTimedelta(self.duration)
+
+    @property
+    def cumulativeDurationAsTimedelta(self):
+        return DurationAsTimedelta(self.cumulativeDuration)
 
     @property
     def hashString(self):
@@ -103,7 +109,7 @@ class Chapter(object):
     def parent(self):
         return self.__parent
 
-    def FromXML(self, element):
+    def fromXML(self, element):
         """ Read the object from an XML file.
         """
 
@@ -122,9 +128,9 @@ class Chapter(object):
         else:
             for childNode in element.childNodes:
                 if (childNode.localName == Cells.XMLNAME):
-                    self.cells.FromXML(childNode)
+                    self.cells.fromXML(childNode)
 
-    def Parse(self, line):
+    def parse(self, line):
         """ Extract the chapter information into the object memebers from
             Handbrakes output.
         """
@@ -146,15 +152,15 @@ class Chapter(object):
             elif (parm.startswith('duration')):
                 self.duration = parm.split()[1]
 
-        self.SetDefaultName()
+        self.setDefaultName()
 
-    def SetDefaultName(self):
+    def setDefaultName(self):
         self.title = self.defaultName
 
-    def SetName(self, name):
+    def setName(self, name):
         self.title = name
 
-    def ToXML(self, doc, parentElement):
+    def toXML(self, doc, parentElement):
         """ Write the object to an XML file.
         """
 
@@ -167,7 +173,11 @@ class Chapter(object):
         element.setAttribute('Duration', self.duration)
         element.setAttribute('Title', self.title)
 
-        self.cells.ToXML(doc, element)
+        # These are "convenience" attributes for other applications that read the XML file.
+        # They are ignored by self.fromXML().
+        element.setAttribute('cumulativeDuration', self.cumulativeDuration) # Always recalculated by Chapers.fromXML()
+
+        self.cells.toXML(doc, element)
 
         return element
 
@@ -183,7 +193,7 @@ class Chapters(MutableSequence):
     PROCESS_CHOICES = [PROCESS_MARKERS, PROCESS_NAMES, PROCESS_NONE]
 
     def __init__(self, parent):
-        super(Chapters, self).__init__()
+        super().__init__()
 
         self.__parent = parent
 
@@ -222,12 +232,12 @@ class Chapters(MutableSequence):
         if (obj.chapterNumber < 1):
             raise RuntimeError('A chapter number, "{}", of less than one was encountered.'.format(obj.chapterNumber))
 
-        if (self._lowestChapterNumber == 0):
+        if (not self._lowestChapterNumber):
             self._lowestChapterNumber = obj.chapterNumber
         elif (obj.chapterNumber < self._lowestChapterNumber):
             self._lowestChapterNumber = obj.chapterNumber
 
-        if (self._highestChapterNumber == 0):
+        if (not self._highestChapterNumber):
             self._highestChapterNumber = obj.chapterNumber
         elif (obj.chapterNumber > self._highestChapterNumber):
             self._highestChapterNumber = obj.chapterNumber
@@ -273,9 +283,26 @@ class Chapters(MutableSequence):
         self._lowestChapterNumber = 0
         self._highestChapterNumber = 0
 
+    # @property
+    # def chapterNumbers(self):
+    #     """ Return a list of chapter numbers.
+    #     """
+    #     chapterNumbers = []
+    #
+    #     for chapter in self.chapters:
+    #         chapterNumbers.append(chapter.chapterNumber)
+    #
+    #     return chapterNumbers
+
     @property
     def highestChapterNumber(self):
         return self._highestChapterNumber
+
+    @property
+    def isNames(self):
+        """ Returns True if this object has custom chapter names.
+        """
+        return (self.processChoice == self.PROCESS_NAMES)
 
     @property
     def lowestChapterNumber(self):
@@ -285,7 +312,33 @@ class Chapters(MutableSequence):
     def parent(self):
         return self.__parent
 
-    def FromXML(self, element):
+    def calculateCumulativeDuration(self):
+        """ Calculate and set a cumulative duration (start time) for each
+            chapter.
+        """
+        cumulativeDuration = datetime.timedelta()
+
+        for chapter in self.chapters:
+            cumulativeDuration += chapter.durationAsTimedelta
+            chapter.cumulativeDuration = TimedeltaAsDuration(cumulativeDuration)
+
+    def checkChapterNames(self):
+        """ Check the chapters for default/custom chapter names.
+
+            Returns a named tupple of (hasDefaultNames, hasCustomNames).
+        """
+        hasDefaultNames = False
+        hasCustomNames = False
+
+        for chapter in self.chapters:
+            if (chapter.isDefaultName):
+                hasDefaultNames = True
+            else:
+                hasCustomNames = True
+
+        return (CheckChapterNames(hasDefaultNames, hasCustomNames))
+
+    def fromXML(self, element):
         """ Read the object from an XML file.
         """
 
@@ -300,10 +353,12 @@ class Chapters(MutableSequence):
             if (childNode.localName == Chapter.XMLNAME):
 
                 chapter = Chapter(self)
-                chapter.FromXML(childNode)
+                chapter.fromXML(childNode)
                 self.append(chapter)            # highest, lowest chapter number set by append()
 
-    def GetByChapterNumber(self, chapterNumber):
+        self.calculateCumulativeDuration()
+
+    def getByChapterNumber(self, chapterNumber):
         """ Returns the chapter for a chapter number.
             Returns None if the requested chapter doesn't exist.
         """
@@ -313,17 +368,7 @@ class Chapters(MutableSequence):
 
         return None
 
-    def GetChapterNumbers(self):
-        """ Return a list of chapter numbers.
-        """
-        chapterNumbers = []
-
-        for chapter in self.chapters:
-            chapterNumbers.append(str(chapter.chapterNumber))
-
-        return chapterNumbers
-
-    def HasChapterNumber(self, chapterNumber):
+    def hasChapterNumber(self, chapterNumber):
         """ Returns true/false if a track number exists.
         """
         if (chapterNumber in self.chaptersByChapterNumber.keys()):
@@ -331,28 +376,28 @@ class Chapters(MutableSequence):
 
         return False
 
-    def InRange(self, chapterNumber):
+    def inRange(self, chapterNumber):
         """ Is the chapter number in the range of available chapter numbers?
         """
         return (chapterNumber >= self._lowestChapterNumber and chapterNumber <= self._highestChapterNumber)
 
-    def SetChapterName(self, chapterNumber, name):
+    def setChapterName(self, chapterNumber, name):
         """ Sets the name for the specified chapter.
         """
-        if (not self.InRange(chapterNumber)):
-            raise RuntimeError('Chapter number "{}" out of range in Chapter.SetChapterName().'.format(chapterNumber))
+        if (not self.inRange(chapterNumber)):
+            raise RuntimeError('Chapter number "{}" out of range in Chapter.setChapterName().'.format(chapterNumber))
 
-        chapter = self.GetByChapterNumber(chapterNumber)
+        chapter = self.getByChapterNumber(chapterNumber)
         if (chapter is not None):
             chapter.title = name
 
-    def SetDefaultNames(self):
+    def setDefaultNames(self):
         """ Sets the chapter titles to "Chapter 1", "Chapter 2", etc.
         """
         for chapter in self.chapters:
-            chapter.SetDefaultName()
+            chapter.setDefaultName()
 
-    def ToXML(self, doc, parentElement):
+    def toXML(self, doc, parentElement):
         """ Write the object to an XML file.
         """
         if (len(self.chapters) > 0):
@@ -364,13 +409,13 @@ class Chapters(MutableSequence):
             element.setAttribute("FirstChapterNumber", str(self.firstChapterNumber))
 
             # These are "convenience" attributes for other applications that read the XML file.
-            # They are ignored by self.FromXML().
+            # They are ignored by self.fromXML().
             element.setAttribute('count', str(len(self.chapters)))
             element.setAttribute('lowestChapterNumber', str(self._lowestChapterNumber))
             element.setAttribute('highestChapterNumber', str(self._highestChapterNumber))
 
             for chapter in self.chapters:
-                chapter.ToXML(doc, element)
+                chapter.toXML(doc, element)
 
             return element
 
@@ -403,7 +448,7 @@ if __name__ == '__main__':
 
     for line in lines:
         chapter = Chapter(chapters)
-        chapter.Parse(line)
+        chapter.parse(line)
         chapters.append(chapter)
 
     print (chapters)
@@ -423,7 +468,7 @@ if __name__ == '__main__':
         else:
             childNode = doc.documentElement.childNodes[1]
             if (childNode.localName == Chapters.XMLNAME):
-                chapters.FromXML(childNode)
+                chapters.fromXML(childNode)
                 print (chapters)
                 for chapter in chapters:
                     print (chapter)
@@ -436,7 +481,7 @@ if __name__ == '__main__':
     doc = dom.createDocument(None, 'TestChapters', None)
     parentElement = doc.documentElement
 
-    chapters.ToXML(doc, parentElement)
+    chapters.toXML(doc, parentElement)
 
     xmlFile = open('TestFiles/TestChapters.xml', 'w')
     doc.writexml(xmlFile, '', '\t', '\n')

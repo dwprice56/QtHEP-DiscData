@@ -173,7 +173,7 @@ class AudioTrack(object):
     def parent(self):
         return self.__parent
 
-    def FromXML(self, element):
+    def fromXML(self, element):
         """ Read the object from an XML file.
         """
 
@@ -191,7 +191,7 @@ class AudioTrack(object):
 
         return (language.lower() == self.language.lower())
 
-    def Parse(self, line):
+    def parse(self, line):
         """ Extract the audio track information into the object memebers from
             Handbrakes output.
         """
@@ -209,7 +209,7 @@ class AudioTrack(object):
             parm = parms[3].lower().strip('bps')
             self.bitsPerSecond = int(parm)
 
-    def ToXML(self, doc, parentElement):
+    def toXML(self, doc, parentElement):
         """ Write the object to an XML file.
         """
 
@@ -231,7 +231,7 @@ class AudioTracks(MutableSequence):
     XMLNAME = 'AudioTracks'
 
     def __init__(self, parent):
-        super(AudioTracks, self).__init__()
+        super().__init__()
 
         self.__parent = parent
 
@@ -278,7 +278,7 @@ class AudioTracks(MutableSequence):
     def parent(self):
         return self.__parent
 
-    def FromXML(self, element):
+    def fromXML(self, element):
         """ Read the object from an XML file.
         """
 
@@ -288,10 +288,10 @@ class AudioTracks(MutableSequence):
             if (childNode.localName == AudioTrack.XMLNAME):
 
                 audioTrack = AudioTrack(self)
-                audioTrack.FromXML(childNode)
+                audioTrack.fromXML(childNode)
                 self.append(audioTrack)
 
-    def GetByTrackNumber(self, trackNumber):
+    def getByTrackNumber(self, trackNumber):
         """ Returns the audio track for a track number.
             Returns None if the requested track doesn't exist.
         """
@@ -301,7 +301,7 @@ class AudioTracks(MutableSequence):
 
         return None
 
-    def HasTrackNumber(self, trackNumber):
+    def hasTrackNumber(self, trackNumber):
         """ Returns true/false if a track number exists.
         """
 
@@ -310,7 +310,7 @@ class AudioTracks(MutableSequence):
 
         return False
 
-    def GetAutoAudio(self, preferencesAutoAudioTracks):
+    def getAutoAudio(self, preferencesAutoAudioTracks):
         """ Return an audio object for this title based on the application settings.
 
             Return a named tuple of (track51, trackDTS, trackFallback).
@@ -356,7 +356,7 @@ class AudioTracks(MutableSequence):
 
         return AutoAudioTracks(track51, trackDTS, trackFallback)
 
-    def ToXML(self, doc, parentElement):
+    def toXML(self, doc, parentElement):
         """ Write the object to an XML file.
         """
 
@@ -365,11 +365,11 @@ class AudioTracks(MutableSequence):
             parentElement.appendChild(element)
 
             # These are "convenience" attributes for other applications that read the XML file.
-            # They are ignored by self.FromXML().
+            # They are ignored by self.fromXML().
             element.setAttribute('count', str(len(self.audioTracks)))
 
             for audioTrack in self.audioTracks:
-                audioTrack.ToXML(doc, element)
+                audioTrack.toXML(doc, element)
 
             return element
 
@@ -390,7 +390,7 @@ if __name__ == '__main__':
 
     for line in lines:
         audioTrack = AudioTrack(audioTracks)
-        audioTrack.Parse(line)
+        audioTrack.parse(line)
         audioTracks.append(audioTrack)
 
     print (audioTracks)
@@ -410,7 +410,7 @@ if __name__ == '__main__':
         else:
             childNode = doc.documentElement.childNodes[1]
             if (childNode.localName == AudioTracks.XMLNAME):
-                audioTracks.FromXML(childNode)
+                audioTracks.fromXML(childNode)
                 print (audioTracks)
                 for audioTrack in audioTracks:
                     print (audioTrack)
@@ -423,7 +423,7 @@ if __name__ == '__main__':
     doc = dom.createDocument(None, 'TestAudioTracks', None)
     parentElement = doc.documentElement
 
-    audioTracks.ToXML(doc, parentElement)
+    audioTracks.toXML(doc, parentElement)
 
     xmlFile = open('TestFiles/TestAudioTracks.xml', 'w')
     doc.writexml(xmlFile, '', '\t', '\n')

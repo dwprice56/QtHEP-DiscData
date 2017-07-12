@@ -16,13 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# import sys
-# from collections import MutableSequence
-#
-# sys.path.insert(0, '/home/dave/QtProjects/Helpers')
-#
-# import XMLHelpers
-# from Helpers import DurationAsTimedelta
+import sys
+
+sys.path.insert(0, '/home/dave/QtProjects/Helpers')
+
+import XMLHelpers
 
 class Cells(object):
 
@@ -50,7 +48,7 @@ class Cells(object):
     def parent(self):
         return self.__parent
 
-    def FromXML(self, element):
+    def fromXML(self, element):
         """ Read the object from an XML file.
         """
         self.clear()
@@ -58,7 +56,7 @@ class Cells(object):
         self.first = XMLHelpers.GetXMLAttributeAsInt(element, 'First', 0)
         self.last = XMLHelpers.GetXMLAttributeAsInt(element, 'Last', 0)
 
-    def ToXML(self, doc, parentElement):
+    def toXML(self, doc, parentElement):
         """ Write the object to an XML file.
         """
         element = doc.createElement(self.XMLNAME)

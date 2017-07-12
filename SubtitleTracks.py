@@ -68,7 +68,7 @@ class SubtitleTrack(object):
     def parent(self):
         return self.__parent
 
-    def FromXML(self, element):
+    def fromXML(self, element):
         """ Read the object from an XML file.
         """
         self.clear()
@@ -86,7 +86,7 @@ class SubtitleTrack(object):
             self.trackNumber, self.language
         )
 
-    def Parse(self, line):
+    def parse(self, line):
         """ Extract the subtitle track information into the object memebers from
             Handbrakes output.
         """
@@ -96,7 +96,7 @@ class SubtitleTrack(object):
         self.trackNumber = int(parms[0])
         self.description = parms[1]
 
-    def ToXML(self, doc, parentElement):
+    def toXML(self, doc, parentElement):
         """ Write the object to an XML file.
         """
         element = doc.createElement(self.XMLNAME)
@@ -158,7 +158,7 @@ class SubtitleTracks(MutableSequence):
     def parent(self):
         return self.__parent
 
-    def FromXML(self, element):
+    def fromXML(self, element):
         """ Read the object from an XML file.
         """
 
@@ -168,10 +168,10 @@ class SubtitleTracks(MutableSequence):
             if (childNode.localName == SubtitleTrack.XMLNAME):
 
                 subtitleTrack = SubtitleTrack(self)
-                subtitleTrack.FromXML(childNode)
+                subtitleTrack.fromXML(childNode)
                 self.append(subtitleTrack)
 
-    def GetByTrackNumber(self, trackNumber):
+    def getByTrackNumber(self, trackNumber):
         """ Returns the subtitle track for a track number.
             Returns None if the requested track doesn't exist.
         """
@@ -180,7 +180,7 @@ class SubtitleTracks(MutableSequence):
 
         return None
 
-    def HasTrackNumber(self, trackNumber):
+    def hasTrackNumber(self, trackNumber):
         """ Returns true/false if a track number exists.
         """
         if (trackNumber in self.subtitleTracksByTrackNumber.keys()):
@@ -188,7 +188,7 @@ class SubtitleTracks(MutableSequence):
 
         return False
 
-    def GetAutoSubtitle(self, preferencesAutoSubtitle):
+    def getAutoSubtitle(self, preferencesAutoSubtitle):
         """ Return a subtitle object for this title based on the application
             settings.
 
@@ -209,7 +209,7 @@ class SubtitleTracks(MutableSequence):
 
         return selectedSubtitleTrack
 
-    def ToXML(self, doc, parentElement):
+    def toXML(self, doc, parentElement):
         """ Write the object to an XML file.
         """
         if (len(self.subtitleTracks) > 0):
@@ -217,11 +217,11 @@ class SubtitleTracks(MutableSequence):
             parentElement.appendChild(element)
 
             # These are "convenience" attributes for other applications that read the XML file.
-            # They are ignored by self.FromXML().
+            # They are ignored by self.fromXML().
             element.setAttribute('count', str(len(self.subtitleTracks)))
 
             for subtitleTrack in self.subtitleTracks:
-                subtitleTrack.ToXML(doc, element)
+                subtitleTrack.toXML(doc, element)
 
             return element
 
@@ -241,7 +241,7 @@ if __name__ == '__main__':
 
     for line in lines:
         subtitleTrack = SubtitleTrack(subtitleTracks)
-        subtitleTrack.Parse(line)
+        subtitleTrack.parse(line)
         subtitleTracks.append(subtitleTrack)
 
     print (subtitleTracks)
@@ -261,7 +261,7 @@ if __name__ == '__main__':
         else:
             childNode = doc.documentElement.childNodes[1]
             if (childNode.localName == SubtitleTracks.XMLNAME):
-                subtitleTracks.FromXML(childNode)
+                subtitleTracks.fromXML(childNode)
                 print (subtitleTracks)
                 for subtitleTrack in subtitleTracks:
                     print (subtitleTrack)
@@ -274,7 +274,7 @@ if __name__ == '__main__':
     doc = dom.createDocument(None, 'TestSubtitleTracks', None)
     parentElement = doc.documentElement
 
-    subtitleTracks.ToXML(doc, parentElement)
+    subtitleTracks.toXML(doc, parentElement)
 
     xmlFile = open('TestFiles/TestSubtitleTracks.xml', 'w')
     doc.writexml(xmlFile, '', '\t', '\n')

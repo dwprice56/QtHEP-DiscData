@@ -34,7 +34,7 @@ from Titles import (Title,
 
 class DiscFilenameTemplatesSingleton(MutableSequence):
     """ This class stores the data used to validate filename templates in
-        Disc.FromXML().
+        Disc.fromXML().
 
         This class implements the singleton pattern so only one instance of this
         class exists.  We don't want to implement the Preferences.FilenameTemplates
@@ -84,7 +84,7 @@ class DiscFilenameTemplatesSingleton(MutableSequence):
 
         del self.filenameTemplates[:]
 
-    def Set(self, filenameTemplates):
+    def set(self, filenameTemplates):
         """Set/update the name list."""
 
         self.clear()
@@ -92,7 +92,7 @@ class DiscFilenameTemplatesSingleton(MutableSequence):
             self.append(filenameTemplate)
 
 class DiscPresetsSingleton(MutableSequence):
-    """This class stores the data used to validate preset names in Disc.FromXML().
+    """This class stores the data used to validate preset names in Disc.fromXML().
 
     This class implements the singleton pattern so only one instance of this
     class exists.  We don't want to implement the Preferences.Presets class as
@@ -141,7 +141,7 @@ class DiscPresetsSingleton(MutableSequence):
 
         del self.presetNames[:]
 
-    def Set(self, presetNames):
+    def set(self, presetNames):
         """Set/update the name list."""
 
         self.clear()
@@ -157,11 +157,12 @@ class Disc(object):
     DEFAULT_EPISODE_NUMBER_PRECISION = 2
     HIDE_SHORT_TITLES_DEFAULT = False
     NODVDNAV_DEFAULT = False
-    NOTES_DEFAULT = ""
+    NOTES_DEFAULT = ''
 
     def __init__(self, parent):
         self.__parent = parent
         self.__discFilenameTemplatesSingleton = DiscFilenameTemplatesSingleton()
+        # self.__discMixdownsSingleton = DiscMixdownsSingleton()
         self.__discPresetsSingleton = DiscPresetsSingleton()
 
         self.titles = Titles(self)
@@ -214,7 +215,7 @@ class Disc(object):
     def parent(self):
         return self.__parent
 
-    def FromXML(self, element, destinationOverride=None):
+    def fromXML(self, element, destinationOverride=None):
         """ Read the application state from an XML file.
 
             If the destinationOverride parameter is supplied it will be used
@@ -258,27 +259,27 @@ class Disc(object):
         # longestTitle = None
         for childNode in element.childNodes:
             if (childNode.localName == Titles.XMLNAME):
-                self.titles.FromXML(childNode)
+                self.titles.fromXML(childNode)
             elif (childNode.localName == AudioTrackStates.XMLNAME):
-                self.audioTrackStates.FromXML(childNode)
+                self.audioTrackStates.fromXML(childNode)
             elif (childNode.localName == SubtitleTrackStates.XMLNAME):
-                self.subtitleTrackStates.FromXML(childNode)
+                self.subtitleTrackStates.fromXML(childNode)
 
             # Legacy support: AudioTrackStates was not always an object.
             elif (childNode.localName == 'AudioTrack0'):
-                self.audioTrackStates[0].FromXML(childNode)
+                self.audioTrackStates[0].fromXML(childNode)
             elif (childNode.localName == 'AudioTrack1'):
-                self.audioTrackStates[1].FromXML(childNode)
+                self.audioTrackStates[1].fromXML(childNode)
             elif (childNode.localName == 'AudioTrack2'):
-                self.audioTrackStates[2].FromXML(childNode)
+                self.audioTrackStates[2].fromXML(childNode)
 
             # Legacy support: SubtitleTrackStates was not always an object.
             elif (childNode.localName == 'SubtitleTrack0'):
-                self.subtitleTrackStates[0].FromXML(childNode)
+                self.subtitleTrackStates[0].fromXML(childNode)
             elif (childNode.localName == 'SubtitleTrack1'):
-                self.subtitleTrackStates[1].FromXML(childNode)
+                self.subtitleTrackStates[1].fromXML(childNode)
             elif (childNode.localName == 'SubtitleTrack2'):
-                self.subtitleTrackStates[2].FromXML(childNode)
+                self.subtitleTrackStates[2].fromXML(childNode)
 
         # ----- CROPPING ----- #
 
@@ -286,7 +287,7 @@ class Disc(object):
         # cropping values are taken from the autoCrop settings of the longest
         # titles.
 
-        matchingTitles = self.titles.GetMatchingTitles()
+        matchingTitles = self.titles.matchingTitles()
         if (matchingTitles.longestTitle):
             autoCrop = matchingTitles.longestTitle.autoCrop
         else:
@@ -294,7 +295,7 @@ class Disc(object):
 
         for childNode in element.childNodes:
             if (childNode.localName == CustomCrop.XMLNAME):
-                self.customCrop.FromXML(childNode, autoCrop)        # The autoCrop parameter provides the default values for custom cropping.
+                self.customCrop.fromXML(childNode, autoCrop)        # The autoCrop parameter provides the default values for custom cropping.
 
         # Legacy code: CustomCrop was not always an object.
         # This is done after reading the child nodes because the top, bottom, etc. defaults
@@ -311,22 +312,24 @@ class Disc(object):
         self.customCrop.right = XMLHelpers.GetXMLAttributeAsInt(element,
             'CustomcropRight', autoCrop.right)
 
-        self.NewSessionStuff()
+        self.newSessionStuff()
 
-    def NewSessionStuff(self):
+    def newSessionStuff(self):
         """ Things to do when a new disc session is parsed or read from a file.
         """
         TitleVisibleSingleton().hideShortTitles = self.hideShortTitles
+        for title in self.titles:
+            title.chapters.calculateCumulativeDuration()
 
-    def Parse(self, buffer):
+    def parse(self, buffer):
         """Parse the output from the HandBrake command line and extract the
         title information.  Use the informtion to create Title objects."""
 
-        self.titles.Parse(buffer)
+        self.titles.parse(buffer)
 
-        self.NewSessionStuff()
+        self.newSessionStuff()
 
-    def ToXML(self, doc, rootElement):
+    def toXML(self, doc, rootElement):
         """Write the application state to an XML file."""
 
         element = doc.createElement(self.XMLNAME)
@@ -350,10 +353,10 @@ class Disc(object):
         element.setAttribute('NODVDNAV', XMLHelpers.BoolToString(self.nodvdnav))
         element.setAttribute('Notes', self.notes.strip())
 
-        self.titles.ToXML(doc, element)
-        self.customCrop.ToXML(doc, element)
-        self.audioTrackStates.ToXML(doc, element)
-        self.subtitleTrackStates.ToXML(doc, element)
+        self.titles.toXML(doc, element)
+        self.customCrop.toXML(doc, element)
+        self.audioTrackStates.toXML(doc, element)
+        self.subtitleTrackStates.toXML(doc, element)
 
         return element
 
@@ -375,7 +378,7 @@ if __name__ == '__main__':
     print (filenameTemplates)
     discFilenameTemplatesSingleton = DiscFilenameTemplatesSingleton()
     print (discFilenameTemplatesSingleton)
-    discFilenameTemplatesSingleton.Set(filenameTemplates)
+    discFilenameTemplatesSingleton.set(filenameTemplates)
     print (discFilenameTemplatesSingleton)
     print ()
 
@@ -383,7 +386,7 @@ if __name__ == '__main__':
     print (presets)
     discPresetsSingleton = DiscPresetsSingleton()
     print (discPresetsSingleton)
-    discPresetsSingleton.Set(presets.GetNames())
+    discPresetsSingleton.set(presets.getNames())
     print (discPresetsSingleton)
     print()
 
@@ -402,7 +405,7 @@ if __name__ == '__main__':
         else:
             childNode = doc.documentElement.childNodes[1]
             if (childNode.localName == Disc.XMLNAME):
-                disc.FromXML(childNode)
+                disc.fromXML(childNode)
                 print (disc)
                 for title in disc.titles:
                     print (title)
@@ -421,7 +424,7 @@ if __name__ == '__main__':
         print ('ERROR!  Unable to find file "{}".'.format(filename))
         sys.exit(1)
 
-    disc.Parse(buffer)
+    disc.parse(buffer)
 
     PrintDisc(disc)
 
@@ -430,7 +433,7 @@ if __name__ == '__main__':
     doc = dom.createDocument(None, 'TestDisc', None)
     parentElement = doc.documentElement
 
-    disc.ToXML(doc, parentElement)
+    disc.toXML(doc, parentElement)
 
     xmlFile = open('TestFiles/TestDisc.xml', 'w')
     doc.writexml(xmlFile, '', '\t', '\n')
