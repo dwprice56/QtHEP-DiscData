@@ -142,6 +142,24 @@ class CustomCrop(Crop):
 
         self.processChoice = self.PROCESS_DEFAULT
 
+    @property
+    def isAutomatic(self):
+        """ Returns True if this object has automatic cropping.
+        """
+        return (self.processChoice == self.PROCESS_AUTOMATIC)
+
+    @property
+    def isCustom(self):
+        """ Returns True if this object has custom cropping.
+        """
+        return (self.processChoice == self.PROCESS_CUSTOM)
+
+    @property
+    def isDefault(self):
+        """ Returns True if this object has default cropping.
+        """
+        return (self.processChoice == self.PROCESS_DEFAULT)
+
     def copy(self, cropObject):
         """ Copy the elements from another Crop object.
         """
@@ -154,7 +172,6 @@ class CustomCrop(Crop):
             self.processChoice = self.PROCESS_DEFAULT
 
     def fromXML(self, element, defaultCrop=None):
-    # def fromXML(self, element, customCrop):
         """ Read the object from an XML file.
         """
         super().fromXML(element, defaultCrop)

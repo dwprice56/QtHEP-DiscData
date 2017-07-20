@@ -262,35 +262,6 @@ class AudioTrackStates(MutableSequence):
     def parent(self):
         return self.__parent
 
-    def fromXML(self, element):
-        """ Read the object from an XML file.
-        """
-        self.clear()
-
-        self.processChoice = XMLHelpers.GetValidXMLAttribute(element, 'ProcessChoice',
-            self.PROCESS_DEFAULT, self.PROCESS_CHOICES)
-
-        for childNode in element.childNodes:
-            if (childNode.localName == AudioTrackState.XMLNAME):
-                index = XMLHelpers.GetXMLAttributeAsInt(childNode, 'Index', 0)
-                if (index in range(len(self.audioTrackStates))):
-                    self.audioTrackStates[index].fromXML(childNode)
-                else:
-                    raise RuntimeError('AudioTrackState index "{}" is out of range in fromXML().'.format(index))
-
-    # def selectedTrackStates(self):
-    #     """ Return the selected audio tracks, with the associated mixdowns.
-    #
-    #         Returns a list of audio track states that are isTrackSelected.
-    #     """
-    #     selectedTracks = []
-    #
-    #     for audioTrackState in self.audioTrackStates:
-    #         if (audioTrackState.isTrackSelected):
-    #             selectedTracks.append(audioTrackState)
-    #
-    #     return selectedTracks
-
     def autoset_From_AudioTracks(self, audioTracks, preferences):
         """ Set the audio track states based on the auto settings and the
             available audio tracks.
@@ -349,6 +320,58 @@ class AudioTrackStates(MutableSequence):
                 audioTrackState.secondaryMixdown = preferences.autoMixdown.otherSecondary
 
         return trackIndex
+
+    def fromXML(self, element):
+        """ Read the object from an XML file.
+        """
+        self.clear()
+
+        self.processChoice = XMLHelpers.GetValidXMLAttribute(element, 'ProcessChoice',
+            self.PROCESS_DEFAULT, self.PROCESS_CHOICES)
+
+        for childNode in element.childNodes:
+            if (childNode.localName == AudioTrackState.XMLNAME):
+                index = XMLHelpers.GetXMLAttributeAsInt(childNode, 'Index', 0)
+                if (index in range(len(self.audioTrackStates))):
+                    self.audioTrackStates[index].fromXML(childNode)
+                else:
+                    raise RuntimeError('AudioTrackState index "{}" is out of range in fromXML().'.format(index))
+
+    # def selectedTrackStates(self):
+    #     """ Return the selected audio tracks, with the associated mixdowns.
+    #
+    #         Returns a list of audio track states that are isTrackSelected.
+    #     """
+    #     selectedTracks = []
+    #
+    #     for audioTrackState in self.audioTrackStates:
+    #         if (audioTrackState.isTrackSelected):
+    #             selectedTracks.append(audioTrackState)
+    #
+    #     return selectedTracks
+
+    def getMixdownTags(self, mixdowns):
+        """ Return a string with the comma separated tags for the selected audio
+            streams.
+        """
+        tags = []
+
+        for audioTrackState in self.audioTrackStates:
+            if (not audioTrackState.track):
+                continue
+
+            mixdown = mixdowns.getByName(audioTrackState.primaryMixdown)
+            if (mixdown is not None):
+                tags.append(mixdown.tag)
+
+            mixdown = mixdowns.getByName(audioTrackState.secondaryMixdown)
+            if (mixdown is not None):
+                tags.append(mixdown.tag)
+
+        if (len(tags)):
+            return ','.join(tags)
+
+        return ''
 
     def toXML(self, doc, parentElement):
         """ Write the object to an XML file.
