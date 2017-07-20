@@ -18,7 +18,7 @@
 
 import datetime, os.path, sys
 
-sys.path.insert(0, '/home/dave/QtProjects/Helpers')
+sys.path.insert(0, '../Helpers')
 
 from PyHelpers import GetVolumeLabel
 

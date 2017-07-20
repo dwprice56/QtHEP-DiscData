@@ -21,7 +21,7 @@ from collections import MutableSequence, namedtuple
 
 from Cells import Cells
 
-sys.path.insert(0, '/home/dave/QtProjects/Helpers')
+sys.path.insert(0, '../Helpers')
 
 import XMLHelpers
 from Helpers import DurationAsTimedelta, TimedeltaAsDuration

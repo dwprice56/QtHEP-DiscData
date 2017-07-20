@@ -19,7 +19,7 @@
 import re, sys
 from collections import MutableSequence, namedtuple
 
-sys.path.insert(0, '/home/dave/QtProjects/Helpers')
+sys.path.insert(0, '../Helpers')
 
 import XMLHelpers
 

@@ -19,7 +19,7 @@
 import sys
 from collections import MutableSequence
 
-sys.path.insert(0, '/home/dave/QtProjects/Helpers')
+sys.path.insert(0, '../Helpers')
 
 import XMLHelpers
 
@@ -364,7 +364,7 @@ if __name__ == '__main__':
 
     import os, xml.dom, xml.dom.minidom as minidom
 
-    sys.path.insert(0, '/home/dave/QtProjects/QtHEP')
+    sys.path.insert(0, '../QtHEP')
 
     from Preferences import FilenameTemplates, Presets
 
